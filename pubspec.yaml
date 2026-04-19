@@ -1,0 +1,39 @@
+name: olmeg_connect
+description: A marketplace app for new, used, and handmade products.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  firebase_core: ^4.7.0
+  firebase_auth: ^6.4.0
+  cloud_firestore: ^6.3.0
+  firebase_storage: ^13.3.0
+
+  flutter_riverpod: ^3.3.1
+  go_router: ^17.2.1
+  image_picker: ^1.0.7
+  cached_network_image: ^3.3.1
+  shimmer: ^3.0.0
+  gap: ^3.0.1
+  uuid: ^4.3.3
+  intl: ^0.20.2
+  equatable: ^2.0.5
+  dartz: ^0.10.1
+  state_notifier: ^1.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/icons/
