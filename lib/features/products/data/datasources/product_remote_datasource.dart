@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import '../../../../core/constants/app_constants.dart';
@@ -8,7 +9,7 @@ abstract class ProductRemoteDataSource {
   Stream<List<ProductModel>> getProducts({String? category});
   Stream<List<ProductModel>> getUserProducts(String userId);
   Future<ProductModel> getProductById(String id);
-  Future<void> addProduct({required ProductModel product, required File imageFile});
+  Future<void> addProduct({required ProductModel product, File? imageFile, Uint8List? imageBytes, String? imageExtension});
   Future<void> deleteProduct(String id);
 }
 
@@ -17,8 +18,7 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
   final FirebaseStorage _storage;
 
   ProductRemoteDataSourceImpl({required FirebaseFirestore firestore, required FirebaseStorage storage})
-      : _firestore = firestore,
-        _storage = storage;
+      : _firestore = firestore, _storage = storage;
 
   CollectionReference get _col => _firestore.collection(AppConstants.productsCollection);
 
@@ -47,20 +47,40 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
   }
 
   @override
-  Future<void> addProduct({required ProductModel product, required File imageFile}) async {
-    final imageUrl = await _uploadImage(imageFile, product.id);
-    final updatedProduct = ProductModel(
-      id: product.id,
-      title: product.title,
-      description: product.description,
-      price: product.price,
-      category: product.category,
-      imageUrl: imageUrl,
-      sellerId: product.sellerId,
-      sellerName: product.sellerName,
-      createdAt: product.createdAt,
-    );
-    await _col.doc(product.id).set(updatedProduct.toFirestore());
+  Future<void> addProduct({required ProductModel product, File? imageFile, Uint8List? imageBytes, String? imageExtension}) async {
+    try {
+      print('[Product] Uploading image for product: ${product.id}');
+      final imageUrl = await _uploadImage(imageFile, imageBytes, product.id, imageExtension: imageExtension);
+      print('[Product] Image uploaded successfully: $imageUrl');
+      
+      final updatedProduct = ProductModel(
+        id: product.id,
+        title: product.title,
+        description: product.description,
+        price: product.price,
+        category: product.category,
+        imageUrl: imageUrl,
+        sellerId: product.sellerId,
+        sellerName: product.sellerName,
+        createdAt: product.createdAt,
+      );
+      
+      print('[Product] Saving product to Firestore');
+      await _col.doc(product.id).set(updatedProduct.toFirestore());
+      print('[Product] Product saved successfully');
+    } on FirebaseException catch (e) {
+      print('[Product] FirebaseException: ${e.code} - ${e.message}');
+      if (e.code == 'permission-denied') {
+        throw Exception('Permission denied. Check Firestore and Storage rules.');
+      } else if (e.code == 'quota-exceeded') {
+        throw Exception('Storage quota exceeded.');
+      } else {
+        throw Exception('Firebase error: ${e.message}');
+      }
+    } catch (e) {
+      print('[Product] Unexpected error: $e');
+      throw Exception('Failed to add product: $e');
+    }
   }
 
   @override
@@ -68,9 +88,46 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
     await _col.doc(id).delete();
   }
 
-  Future<String> _uploadImage(File file, String productId) async {
-    final ref = _storage.ref().child('${AppConstants.productImagesPath}/$productId.jpg');
-    await ref.putFile(file);
-    return ref.getDownloadURL();
+  Future<String> _uploadImage(File? file, Uint8List? bytes, String productId, {String? imageExtension}) async {
+    try {
+      final ext = imageExtension ?? 'jpg';
+      final ref = _storage.ref().child('${AppConstants.productImagesPath}/$productId.$ext');
+      
+      // Determine correct MIME type
+      String contentType;
+      switch (ext.toLowerCase()) {
+        case 'png':
+          contentType = 'image/png';
+          break;
+        case 'gif':
+          contentType = 'image/gif';
+          break;
+        case 'webp':
+          contentType = 'image/webp';
+          break;
+        default:
+          contentType = 'image/jpeg';
+      }
+      
+      final metadata = SettableMetadata(contentType: contentType);
+      
+      UploadTask uploadTask;
+      if (bytes != null && bytes.isNotEmpty) {
+        // Web: use bytes directly
+        uploadTask = ref.putData(bytes, metadata);
+      } else if (file != null) {
+        // Mobile/desktop: use file
+        final fileBytes = await file.readAsBytes();
+        uploadTask = ref.putData(fileBytes, metadata);
+      } else {
+        throw Exception('No image provided');
+      }
+      
+      final snapshot = await uploadTask;
+      return await snapshot.ref.getDownloadURL();
+    } on FirebaseException catch (e) {
+      print('[Product] Storage error: ${e.code} - ${e.message}');
+      throw Exception('Failed to upload image: ${e.message}');
+    }
   }
 }

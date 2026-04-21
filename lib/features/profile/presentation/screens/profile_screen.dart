@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
+import 'package:go_router/go_router.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../products/presentation/providers/product_provider.dart';
 import '../../../products/presentation/widgets/product_card.dart';
@@ -41,6 +42,9 @@ class ProfileScreen extends ConsumerWidget {
                   );
                   if (confirm == true) {
                     await ref.read(authNotifierProvider.notifier).signOut();
+                    if (context.mounted) {
+                      context.go('/login');
+                    }
                   }
                 },
               ),
@@ -53,14 +57,7 @@ class ProfileScreen extends ConsumerWidget {
                   padding: const EdgeInsets.all(24),
                   child: Column(
                     children: [
-                      CircleAvatar(
-                        radius: 48,
-                        backgroundColor: AppTheme.primaryColor,
-                        backgroundImage: user.photoUrl != null ? NetworkImage(user.photoUrl!) : null,
-                        child: user.photoUrl == null
-                            ? Text(user.name.isNotEmpty ? user.name[0].toUpperCase() : 'U', style: const TextStyle(fontSize: 32, color: Colors.white, fontWeight: FontWeight.bold))
-                            : null,
-                      ),
+                      _buildAvatar(user.name, user.photoUrl),
                       const Gap(12),
                       Text(user.name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                       Text(user.email, style: const TextStyle(color: Colors.grey)),
@@ -129,6 +126,37 @@ class ProfileScreen extends ConsumerWidget {
         );
       },
     );
+  }
+
+  Widget _buildAvatar(String name, String? photoUrl) {
+    if (photoUrl != null && photoUrl.isNotEmpty) {
+      return CircleAvatar(
+        radius: 48,
+        backgroundColor: AppTheme.primaryColor,
+        backgroundImage: _tryCreateNetworkImage(photoUrl),
+        child: Text(
+          name.isNotEmpty ? name[0].toUpperCase() : 'U',
+          style: const TextStyle(fontSize: 32, color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+      );
+    }
+    return CircleAvatar(
+      radius: 48,
+      backgroundColor: AppTheme.primaryColor,
+      child: Text(
+        name.isNotEmpty ? name[0].toUpperCase() : 'U',
+        style: const TextStyle(fontSize: 32, color: Colors.white, fontWeight: FontWeight.bold),
+      ),
+    );
+  }
+
+  ImageProvider? _tryCreateNetworkImage(String? url) {
+    if (url == null || url.isEmpty) return null;
+    try {
+      return NetworkImage(url);
+    } catch (_) {
+      return null;
+    }
   }
 }
 

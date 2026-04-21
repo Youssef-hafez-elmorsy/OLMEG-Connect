@@ -13,20 +13,12 @@ class ProductCard extends StatelessWidget {
     return GestureDetector(
       onTap: () => context.push('/product/${product.id}', extra: product),
       child: Card(
+        clipBehavior: Clip.antiAlias,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                child: CachedNetworkImage(
-                  imageUrl: product.imageUrl,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  placeholder: (_, __) => Container(color: Colors.grey.shade200, child: const Center(child: CircularProgressIndicator(strokeWidth: 2))),
-                  errorWidget: (_, __, ___) => Container(color: Colors.grey.shade200, child: const Icon(Icons.image_not_supported, color: Colors.grey)),
-                ),
-              ),
+              child: _buildImage(),
             ),
             Padding(
               padding: const EdgeInsets.all(12),
@@ -51,6 +43,45 @@ class ProductCard extends StatelessWidget {
                 ],
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildImage() {
+    if (product.imageUrl.isEmpty || !product.imageUrl.startsWith('http')) {
+      return Container(
+        color: Colors.grey.shade200,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.image_outlined, size: 40, color: Colors.grey.shade400),
+            const SizedBox(height: 4),
+            Text('No image', style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
+          ],
+        ),
+      );
+    }
+
+    return CachedNetworkImage(
+      imageUrl: product.imageUrl,
+      width: double.infinity,
+      fit: BoxFit.cover,
+      placeholder: (_, __) => Container(
+        color: Colors.grey.shade200,
+        child: const Center(
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      ),
+      errorWidget: (_, __, ___) => Container(
+        color: Colors.grey.shade200,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.broken_image, size: 40, color: Colors.grey.shade400),
+            const SizedBox(height: 4),
+            Text('Image unavailable', style: TextStyle(color: Colors.grey.shade500, fontSize: 11)),
           ],
         ),
       ),

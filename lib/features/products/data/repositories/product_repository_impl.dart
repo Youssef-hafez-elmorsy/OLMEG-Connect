@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:dartz/dartz.dart';
 import '../../../../core/errors/failures.dart';
 import '../../domain/entities/product_entity.dart';
@@ -29,7 +30,11 @@ class ProductRepositoryImpl implements ProductRepository {
   }
 
   @override
-  Future<Either<Failure, void>> addProduct({required ProductEntity product, required File imageFile}) async {
+  Future<Either<Failure, void>> addProduct({
+    required ProductEntity product, 
+    File? imageFile,
+    Uint8List? imageBytes,
+  }) async {
     try {
       final model = ProductModel(
         id: product.id,
@@ -42,7 +47,7 @@ class ProductRepositoryImpl implements ProductRepository {
         sellerName: product.sellerName,
         createdAt: product.createdAt,
       );
-      await _dataSource.addProduct(product: model, imageFile: imageFile);
+      await _dataSource.addProduct(product: model, imageFile: imageFile, imageBytes: imageBytes);
       return const Right(null);
     } catch (_) {
       return const Left(ServerFailure('Failed to add product.'));

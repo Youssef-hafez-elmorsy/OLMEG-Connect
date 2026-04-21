@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # olmeg_connect
 
 A new Flutter project.
@@ -15,3 +16,7 @@ A few resources to get you started if this is your first Flutter project:
 For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
+=======
+# OLMEG-Connect
+this project aims to devlop an application that combines features of olx and amazon, allowing users to easily buy and sell products. 
+>>>>>>> 01d3f19f09c1e58319f2b82a6fcced4bbc77ebdd

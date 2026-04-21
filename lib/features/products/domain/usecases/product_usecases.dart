@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:dartz/dartz.dart';
 import '../../../../core/errors/failures.dart';
 import '../entities/product_entity.dart';
@@ -19,8 +20,11 @@ class GetUserProductsUseCase {
 class AddProductUseCase {
   final ProductRepository repository;
   AddProductUseCase(this.repository);
-  Future<Either<Failure, void>> call({required ProductEntity product, required File imageFile}) =>
-      repository.addProduct(product: product, imageFile: imageFile);
+  Future<Either<Failure, void>> call({
+    required ProductEntity product, 
+    File? imageFile,
+    Uint8List? imageBytes,
+  }) => repository.addProduct(product: product, imageFile: imageFile, imageBytes: imageBytes);
 }
 
 class DeleteProductUseCase {

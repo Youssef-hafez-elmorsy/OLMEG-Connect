@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -26,7 +26,7 @@ class PostsNotifier extends Notifier<AsyncValue<void>> {
     required String authorName,
     required String? authorPhotoUrl,
     required String description,
-    required File image,
+    Uint8List? imageBytes,
   }) async {
     state = const AsyncValue.loading();
     try {
@@ -35,7 +35,7 @@ class PostsNotifier extends Notifier<AsyncValue<void>> {
         authorName: authorName,
         authorPhotoUrl: authorPhotoUrl,
         description: description,
-        image: image,
+        imageBytes: imageBytes,
       );
       state = const AsyncValue.data(null);
       return null;

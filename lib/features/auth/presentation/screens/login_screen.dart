@@ -40,6 +40,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(error), backgroundColor: AppTheme.errorColor),
       );
+    } else {
+      // Force navigate to home after successful login
+      if (mounted) {
+        await Future.delayed(const Duration(milliseconds: 100));
+        if (mounted) {
+          context.go('/home');
+        }
+      }
     }
   }
 

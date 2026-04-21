@@ -4,6 +4,7 @@ class AppConstants {
   static const String usersCollection = 'users';
   static const String productsCollection = 'products';
   static const String postsCollection = 'posts';
+  static const String chatsCollection = 'chats';
 
   static const String categoryNew = 'New';
   static const String categoryUsed = 'Used';

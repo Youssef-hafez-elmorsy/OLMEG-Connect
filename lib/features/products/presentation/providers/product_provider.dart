@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -58,7 +59,8 @@ class AddProductNotifier extends Notifier<AsyncValue<void>> {
     required String description,
     required double price,
     required String category,
-    required File imageFile,
+    File? imageFile,
+    Uint8List? imageBytes,
   }) async {
     state = const AsyncValue.loading();
     final user = ref.read(authStateProvider).value;
@@ -78,7 +80,7 @@ class AddProductNotifier extends Notifier<AsyncValue<void>> {
       sellerName: user.name,
       createdAt: DateTime.now(),
     );
-    final result = await addProductUseCase(product: product, imageFile: imageFile);
+    final result = await addProductUseCase(product: product, imageFile: imageFile, imageBytes: imageBytes);
     return result.fold(
       (failure) {
         state = const AsyncValue.data(null);

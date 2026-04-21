@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
@@ -24,6 +26,8 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
   final _priceCtrl = TextEditingController();
   String _selectedCategory = AppConstants.categoryNew;
   File? _imageFile;
+  Uint8List? _imageBytes;
+  String? _imagePath;
   bool _isLoading = false;
 
   @override
@@ -37,25 +41,46 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
   Future<void> _pickImage() async {
     final picker = ImagePicker();
     final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
-    if (picked != null) setState(() => _imageFile = File(picked.path));
+    if (picked != null) {
+      if (kIsWeb) {
+        final bytes = await picked.readAsBytes();
+        setState(() {
+          _imageFile = null;
+          _imageBytes = bytes;
+          _imagePath = picked.path;
+        });
+      } else {
+        setState(() {
+          _imageFile = File(picked.path);
+          _imageBytes = null;
+          _imagePath = picked.path;
+        });
+      }
+    }
   }
+
+  bool get _hasImage => _imageFile != null || _imageBytes != null;
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_imageFile == null) {
+    if (!_hasImage) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select a product image'), backgroundColor: AppTheme.errorColor),
       );
       return;
     }
     setState(() => _isLoading = true);
+    
+    File? fileToUpload = _imageFile;
+    
     final error = await ref.read(addProductNotifierProvider.notifier).addProduct(
-          title: _titleCtrl.text.trim(),
-          description: _descCtrl.text.trim(),
-          price: double.parse(_priceCtrl.text.trim()),
-          category: _selectedCategory,
-          imageFile: _imageFile!,
-        );
+      title: _titleCtrl.text.trim(),
+      description: _descCtrl.text.trim(),
+      price: double.parse(_priceCtrl.text.trim()),
+      category: _selectedCategory,
+      imageFile: fileToUpload,
+      imageBytes: _imageBytes,
+    );
     if (!mounted) return;
     setState(() => _isLoading = false);
     if (error != null) {
@@ -77,7 +102,6 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Image picker
               GestureDetector(
                 onTap: _pickImage,
                 child: Container(
@@ -86,19 +110,25 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                   decoration: BoxDecoration(
                     color: Colors.grey.shade100,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.grey.shade300, style: BorderStyle.solid),
-                    image: _imageFile != null ? DecorationImage(image: FileImage(_imageFile!), fit: BoxFit.cover) : null,
+                    border: Border.all(color: Colors.grey.shade300),
                   ),
-                  child: _imageFile == null
-                      ? Column(
+                  child: _hasImage
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: kIsWeb && _imageBytes != null
+                              ? Image.memory(_imageBytes!, fit: BoxFit.cover)
+                              : _imageFile != null
+                                  ? Image.file(_imageFile!, fit: BoxFit.cover)
+                                  : const Icon(Icons.image, size: 48),
+                        )
+                      : Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(Icons.add_photo_alternate_outlined, size: 48, color: Colors.grey.shade400),
                             const Gap(8),
                             Text('Tap to add product image', style: TextStyle(color: Colors.grey.shade500)),
                           ],
-                        )
-                      : null,
+                        ),
                 ),
               ),
               const Gap(20),

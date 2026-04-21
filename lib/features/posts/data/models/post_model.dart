@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../domain/entities/post_entity.dart';
 
 class PostModel extends PostEntity {
+  final String? imageBase64;
+  
   const PostModel({
     required super.id,
     required super.authorId,
@@ -12,6 +14,7 @@ class PostModel extends PostEntity {
     required super.likes,
     required super.commentCount,
     required super.createdAt,
+    this.imageBase64,
   });
 
   factory PostModel.fromFirestore(DocumentSnapshot doc) {
@@ -23,6 +26,7 @@ class PostModel extends PostEntity {
       authorPhotoUrl: data['authorPhotoUrl'],
       description: data['description'] ?? '',
       imageUrl: data['imageUrl'] ?? '',
+      imageBase64: data['imageBase64'],
       likes: List<String>.from(data['likes'] ?? []),
       commentCount: data['commentCount'] ?? 0,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
@@ -35,6 +39,7 @@ class PostModel extends PostEntity {
         'authorPhotoUrl': authorPhotoUrl,
         'description': description,
         'imageUrl': imageUrl,
+        'imageBase64': imageBase64,
         'likes': likes,
         'commentCount': commentCount,
         'createdAt': Timestamp.fromDate(createdAt),

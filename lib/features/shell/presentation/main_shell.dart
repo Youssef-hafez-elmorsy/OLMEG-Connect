@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../../features/home/presentation/screens/home_screen.dart';
 import '../../../features/products/presentation/screens/add_product_screen.dart';
 import '../../../features/profile/presentation/screens/profile_screen.dart';
 import '../../../features/posts/presentation/screens/posts_screen.dart';
+import '../../../features/chat/presentation/screens/chat_list_screen.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -17,6 +19,7 @@ class _MainShellState extends State<MainShell> {
     HomeScreen(),
     PostsScreen(),
     AddProductScreen(),
+    ChatListScreen(),
     ProfileScreen(),
   ];
 
@@ -31,6 +34,7 @@ class _MainShellState extends State<MainShell> {
           NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Home'),
           NavigationDestination(icon: Icon(Icons.grid_view_outlined), selectedIcon: Icon(Icons.grid_view), label: 'Feed'),
           NavigationDestination(icon: Icon(Icons.add_circle_outline), selectedIcon: Icon(Icons.add_circle), label: 'Sell'),
+          NavigationDestination(icon: Icon(Icons.chat_bubble_outline), selectedIcon: Icon(Icons.chat_bubble), label: 'Chat'),
           NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: 'Profile'),
         ],
       ),

@@ -45,6 +45,16 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(error), backgroundColor: AppTheme.errorColor),
       );
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Account created successfully!'), backgroundColor: Color.fromARGB(255, 103, 19, 28)),
+        );
+        await Future.delayed(const Duration(milliseconds: 100));
+        if (mounted) {
+          context.go('/home');
+        }
+      }
     }
   }
 
