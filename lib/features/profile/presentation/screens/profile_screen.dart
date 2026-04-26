@@ -1,181 +1,262 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
-import '../../../auth/presentation/providers/auth_provider.dart';
-import '../../../products/presentation/providers/product_provider.dart';
-import '../../../products/presentation/widgets/product_card.dart';
-import '../../../../core/theme/app_theme.dart';
-import '../../../../core/widgets/error_widget.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:olmeg_connect/core/theme/app_theme.dart';
+import 'package:olmeg_connect/features/auth/presentation/providers/auth_provider.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final userAsync = ref.watch(authStateProvider);
+    final user = ref.watch(authStateProvider).value;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? const Color(0xFF0F172A) : const Color(0xFFF5F5F7);
+    final surfaceColor = isDark ? const Color(0xFF1E293B) : const Color(0xFFFFFFFF);
+    final textColor = isDark ? const Color(0xFFF8FAFC) : const Color(0xFF1E293B);
+    final secColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final dividerColor = isDark ? const Color(0xFF475569) : const Color(0xFFE2E8F0);
 
-    return userAsync.when(
-      loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
-      error: (e, _) => Scaffold(body: AppErrorWidget(message: e.toString())),
-      data: (user) {
-        if (user == null) return const Scaffold(body: Center(child: Text('Not logged in')));
-        final productsAsync = ref.watch(userProductsStreamProvider(user.id));
-
-        return Scaffold(
-          appBar: AppBar(
-            title: const Text('Profile'),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.logout),
-                onPressed: () async {
-                  final confirm = await showDialog<bool>(
-                    context: context,
-                    builder: (_) => AlertDialog(
-                      title: const Text('Sign out?'),
-                      content: const Text('Are you sure you want to sign out?'),
-                      actions: [
-                        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-                        TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Sign Out', style: TextStyle(color: Colors.red))),
-                      ],
-                    ),
-                  );
-                  if (confirm == true) {
-                    await ref.read(authNotifierProvider.notifier).signOut();
-                    if (context.mounted) {
-                      context.go('/login');
-                    }
-                  }
-                },
-              ),
-            ],
+    return Scaffold(
+      backgroundColor: bgColor,
+      appBar: AppBar(
+        backgroundColor: bgColor,
+        title: Text('Profile', style: TextStyle(color: textColor)),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.refresh, color: textColor),
+            onPressed: () => ref.refresh(authStateProvider),
           ),
-          body: CustomScrollView(
-            slivers: [
-              SliverToBoxAdapter(
-                child: Container(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
+          IconButton(
+            icon: Icon(Icons.settings, color: textColor),
+            onPressed: () => context.push('/settings'),
+          ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(AppSpacing.xl),
+              decoration: BoxDecoration(
+                color: surfaceColor,
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+                border: Border.all(color: dividerColor),
+              ),
+              child: Column(
+                children: [
+                  CircleAvatar(
+                    radius: 50,
+                    backgroundColor: AppColors.primary,
+                    child: Text(
+                      user?.name.isNotEmpty == true ? user!.name[0].toUpperCase() : 'U',
+                      style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: bgColor),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  Text(
+                    user?.name ?? 'Guest',
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: textColor),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    user?.email ?? '',
+                    style: TextStyle(color: secColor),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      _buildAvatar(user.name, user.photoUrl),
-                      const Gap(12),
-                      Text(user.name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                      Text(user.email, style: const TextStyle(color: Colors.grey)),
-                      const Gap(24),
-                      productsAsync.when(
-                        loading: () => const SizedBox(),
-                        error: (_, __) => const SizedBox(),
-                        data: (products) => Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            _StatBox(label: 'Listings', value: products.length.toString()),
-                          ],
-                        ),
-                      ),
+                      _StatItem(label: 'Products', value: '0', textColor: textColor, secColor: secColor),
+                      _StatItem(label: 'Sold', value: '0', textColor: textColor, secColor: secColor),
+                      _StatItem(label: 'Rating', value: '0.0', textColor: textColor, secColor: secColor),
                     ],
                   ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            _MenuItem(
+              icon: Icons.shopping_bag,
+              title: 'My Products',
+              textColor: textColor,
+              secColor: secColor,
+              onTap: () => context.push('/my-products'),
+            ),
+            _MenuItem(
+              icon: Icons.favorite,
+              title: 'Favorites',
+              textColor: textColor,
+              secColor: secColor,
+              onTap: () => context.push('/favorites'),
+            ),
+            _MenuItem(
+              icon: Icons.history,
+              title: 'Order History',
+              textColor: textColor,
+              secColor: secColor,
+              onTap: () {},
+            ),
+            _MenuItem(
+              icon: Icons.settings,
+              title: 'Settings',
+              textColor: textColor,
+              secColor: secColor,
+              onTap: () => context.push('/settings'),
+            ),
+            _MenuItem(
+              icon: Icons.help,
+              title: 'Help & Support',
+              textColor: textColor,
+              secColor: secColor,
+              onTap: () {},
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => _showDeleteAccountDialog(context, ref),
+                icon: const Icon(Icons.delete_forever, color: AppColors.error),
+                label: const Text('Delete Account', style: TextStyle(color: AppColors.error)),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: AppColors.error),
                 ),
               ),
-              const SliverToBoxAdapter(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16),
-                  child: Text('My Listings', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                ),
-              ),
-              const SliverToBoxAdapter(child: Gap(12)),
-              productsAsync.when(
-                loading: () => const SliverToBoxAdapter(child: Center(child: CircularProgressIndicator())),
-                error: (e, _) => SliverToBoxAdapter(child: AppErrorWidget(message: e.toString())),
-                data: (products) {
-                  if (products.isEmpty) {
-                    return SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.all(32),
-                        child: Center(
-                          child: Column(
-                            children: [
-                              Icon(Icons.storefront_outlined, size: 64, color: Colors.grey.shade300),
-                              const Gap(12),
-                              const Text("You haven't listed anything yet", style: TextStyle(color: Colors.grey)),
-                            ],
-                          ),
-                        ),
-                      ),
-                    );
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () async {
+                  await ref.read(authNotifierProvider.notifier).signOut();
+                  if (context.mounted) {
+                    context.go('/login');
                   }
-                  return SliverPadding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    sliver: SliverGrid(
-                      delegate: SliverChildBuilderDelegate(
-                        (_, i) => ProductCard(product: products[i]),
-                        childCount: products.length,
-                      ),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        childAspectRatio: 0.72,
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                      ),
-                    ),
-                  );
                 },
+                icon: const Icon(Icons.logout, color: AppColors.error),
+                label: const Text('Sign Out', style: TextStyle(color: AppColors.error)),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: AppColors.error),
+                ),
               ),
-              const SliverToBoxAdapter(child: Gap(32)),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildAvatar(String name, String? photoUrl) {
-    if (photoUrl != null && photoUrl.isNotEmpty) {
-      return CircleAvatar(
-        radius: 48,
-        backgroundColor: AppTheme.primaryColor,
-        backgroundImage: _tryCreateNetworkImage(photoUrl),
-        child: Text(
-          name.isNotEmpty ? name[0].toUpperCase() : 'U',
-          style: const TextStyle(fontSize: 32, color: Colors.white, fontWeight: FontWeight.bold),
+            ),
+          ],
         ),
-      );
-    }
-    return CircleAvatar(
-      radius: 48,
-      backgroundColor: AppTheme.primaryColor,
-      child: Text(
-        name.isNotEmpty ? name[0].toUpperCase() : 'U',
-        style: const TextStyle(fontSize: 32, color: Colors.white, fontWeight: FontWeight.bold),
       ),
     );
   }
 
-  ImageProvider? _tryCreateNetworkImage(String? url) {
-    if (url == null || url.isEmpty) return null;
+  void _showDeleteAccountDialog(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E293B),
+        title: const Text('Delete Account?', style: TextStyle(color: Color(0xFFF8FAFC))),
+        content: const Text(
+          'This will permanently delete your account and all data. This action cannot be undone.',
+          style: TextStyle(color: Color(0xFF94A3B8)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await _deleteAccount(context, ref);
+            },
+            child: const Text('Delete', style: TextStyle(color: AppColors.error)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteAccount(BuildContext context, WidgetRef ref) async {
     try {
-      return NetworkImage(url);
-    } catch (_) {
-      return null;
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) return;
+
+      await FirebaseFirestore.instance.collection('users').doc(currentUser.uid).delete();
+      await currentUser.delete();
+
+      ref.read(authNotifierProvider.notifier).signOut();
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error deleting account: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
     }
   }
 }
 
-class _StatBox extends StatelessWidget {
+class _StatItem extends StatelessWidget {
   final String label;
   final String value;
-  const _StatBox({required this.label, required this.value});
+  final Color textColor;
+  final Color secColor;
+
+  const _StatItem({
+    required this.label,
+    required this.value,
+    required this.textColor,
+    required this.secColor,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-      decoration: BoxDecoration(color: const Color(0xFFF8F8FF), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)),
-      child: Column(
-        children: [
-          Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
-          Text(label, style: const TextStyle(color: Colors.grey)),
-        ],
+    return Column(
+      children: [
+        Text(
+          value,
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor),
+        ),
+        Text(
+          label,
+          style: TextStyle(color: secColor, fontSize: 12),
+        ),
+      ],
+    );
+  }
+}
+
+class _MenuItem extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final Color textColor;
+  final Color secColor;
+  final VoidCallback onTap;
+
+  const _MenuItem({
+    required this.icon,
+    required this.title,
+    required this.textColor,
+    required this.secColor,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: const Color(0xFF334155),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(icon, color: AppColors.primary, size: 20),
       ),
+      title: Text(title, style: TextStyle(color: textColor)),
+      trailing: Icon(Icons.chevron_right, color: secColor),
+      onTap: onTap,
     );
   }
 }

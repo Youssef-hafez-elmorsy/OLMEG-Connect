@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -50,7 +52,7 @@ class ProductCard extends StatelessWidget {
   }
 
   Widget _buildImage() {
-    if (product.imageUrl.isEmpty || !product.imageUrl.startsWith('http')) {
+    if (product.imageUrl.isEmpty) {
       return Container(
         color: Colors.grey.shade200,
         child: Column(
@@ -64,6 +66,27 @@ class ProductCard extends StatelessWidget {
       );
     }
 
+    // Handle base64 images
+    if (product.imageUrl.startsWith('data:image')) {
+      try {
+        final base64String = product.imageUrl.split(',').last;
+        final bytes = base64Decode(base64String);
+        return Image.memory(
+          Uint8List.fromList(bytes),
+          width: double.infinity,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _buildPlaceholder(),
+        );
+      } catch (e) {
+        return _buildPlaceholder();
+      }
+    }
+
+    // Handle regular URLs
+    if (!product.imageUrl.startsWith('http')) {
+      return _buildPlaceholder();
+    }
+
     return CachedNetworkImage(
       imageUrl: product.imageUrl,
       width: double.infinity,
@@ -74,16 +97,20 @@ class ProductCard extends StatelessWidget {
           child: CircularProgressIndicator(strokeWidth: 2),
         ),
       ),
-      errorWidget: (_, __, ___) => Container(
-        color: Colors.grey.shade200,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.broken_image, size: 40, color: Colors.grey.shade400),
-            const SizedBox(height: 4),
-            Text('Image unavailable', style: TextStyle(color: Colors.grey.shade500, fontSize: 11)),
-          ],
-        ),
+      errorWidget: (_, __, ___) => _buildPlaceholder(),
+    );
+  }
+
+  Widget _buildPlaceholder() {
+    return Container(
+      color: Colors.grey.shade200,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.broken_image, size: 40, color: Colors.grey.shade400),
+          const SizedBox(height: 4),
+          Text('Image unavailable', style: TextStyle(color: Colors.grey.shade500, fontSize: 11)),
+        ],
       ),
     );
   }

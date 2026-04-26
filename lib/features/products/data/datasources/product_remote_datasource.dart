@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../models/product_model.dart';
 
@@ -91,9 +93,16 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
   Future<String> _uploadImage(File? file, Uint8List? bytes, String productId, {String? imageExtension}) async {
     try {
       final ext = imageExtension ?? 'jpg';
+      
+      // For Web: use base64 instead of Firebase Storage
+      if (kIsWeb && bytes != null && bytes.isNotEmpty) {
+        final base64String = base64Encode(bytes);
+        return 'data:image/$ext;base64,$base64String';
+      }
+      
+      // For Mobile/Desktop: use Firebase Storage
       final ref = _storage.ref().child('${AppConstants.productImagesPath}/$productId.$ext');
       
-      // Determine correct MIME type
       String contentType;
       switch (ext.toLowerCase()) {
         case 'png':
@@ -112,13 +121,10 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
       final metadata = SettableMetadata(contentType: contentType);
       
       UploadTask uploadTask;
-      if (bytes != null && bytes.isNotEmpty) {
-        // Web: use bytes directly
+      if (file != null) {
+        uploadTask = ref.putFile(file);
+      } else if (bytes != null && bytes.isNotEmpty) {
         uploadTask = ref.putData(bytes, metadata);
-      } else if (file != null) {
-        // Mobile/desktop: use file
-        final fileBytes = await file.readAsBytes();
-        uploadTask = ref.putData(fileBytes, metadata);
       } else {
         throw Exception('No image provided');
       }

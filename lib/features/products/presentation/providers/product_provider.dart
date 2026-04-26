@@ -97,3 +97,35 @@ class AddProductNotifier extends Notifier<AsyncValue<void>> {
 final addProductNotifierProvider = NotifierProvider<AddProductNotifier, AsyncValue<void>>(() {
   return AddProductNotifier();
 });
+
+class FavoriteNotifier extends Notifier<AsyncValue<void>> {
+  @override
+  AsyncValue<void> build() => const AsyncValue.data(null);
+
+  Future<void> toggleFavorite(String productId) async {
+    try {
+      final user = ref.read(authStateProvider).value;
+      if (user == null) return;
+
+      final firestore = FirebaseFirestore.instance;
+      final favoriteRef = firestore.collection('favorites').doc('${user.id}_$productId');
+      
+      final doc = await favoriteRef.get();
+      if (doc.exists) {
+        await favoriteRef.delete();
+      } else {
+        await favoriteRef.set({
+          'userId': user.id,
+          'productId': productId,
+          'createdAt': DateTime.now(),
+        });
+      }
+    } catch (e) {
+      print('Error toggling favorite: $e');
+    }
+  }
+}
+
+final favoriteNotifierProvider = NotifierProvider<FavoriteNotifier, AsyncValue<void>>(() {
+  return FavoriteNotifier();
+});

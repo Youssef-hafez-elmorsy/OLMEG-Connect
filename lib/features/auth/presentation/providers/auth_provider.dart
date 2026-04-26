@@ -67,6 +67,7 @@ class AuthNotifier extends Notifier<AsyncValue<UserEntity?>> {
   Future<void> signOut() async {
     await _signOut();
     state = const AsyncValue.data(null);
+    ref.invalidate(authStateProvider);
   }
 }
 

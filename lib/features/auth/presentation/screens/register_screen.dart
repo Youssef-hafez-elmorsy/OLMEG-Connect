@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/utils/validators.dart';
-import '../../../../core/widgets/app_button.dart';
-import '../../../../core/widgets/app_text_field.dart';
 import '../providers/auth_provider.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
+
   @override
   ConsumerState<RegisterScreen> createState() => _RegisterScreenState();
 }
@@ -21,6 +18,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _passCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
   bool _isLoading = false;
+  bool _obscurePassword = true;
+  bool _obscureConfirm = true;
 
   @override
   void dispose() {
@@ -34,21 +33,27 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   Future<void> _signUp() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
+
     final error = await ref.read(authNotifierProvider.notifier).signUp(
-          email: _emailCtrl.text.trim(),
-          password: _passCtrl.text.trim(),
-          name: _nameCtrl.text.trim(),
-        );
+      email: _emailCtrl.text.trim(),
+      password: _passCtrl.text.trim(),
+      name: _nameCtrl.text.trim(),
+    );
+
     if (!mounted) return;
     setState(() => _isLoading = false);
+
     if (error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error), backgroundColor: AppTheme.errorColor),
+        SnackBar(content: Text(error), backgroundColor: AppColors.error),
       );
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Account created successfully!'), backgroundColor: Color.fromARGB(255, 103, 19, 28)),
+          const SnackBar(
+            content: Text('Account created successfully!'),
+            backgroundColor: AppColors.success,
+          ),
         );
         await Future.delayed(const Duration(milliseconds: 100));
         if (mounted) {
@@ -61,44 +66,166 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Create Account')),
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: AppColors.background,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+          onPressed: () => context.pop(),
+        ),
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(AppSpacing.xl),
           child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Join Olmeg Connect', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-                const Text('Create your account to start buying & selling', style: TextStyle(color: Colors.grey)),
-                const Gap(32),
-                AppTextField(controller: _nameCtrl, label: 'Full Name', prefixIcon: Icons.person_outline, validator: Validators.name),
-                const Gap(16),
-                AppTextField(controller: _emailCtrl, label: 'Email', prefixIcon: Icons.email_outlined, keyboardType: TextInputType.emailAddress, validator: Validators.email),
-                const Gap(16),
-                AppTextField(controller: _passCtrl, label: 'Password', prefixIcon: Icons.lock_outline, isPassword: true, validator: Validators.password),
-                const Gap(16),
-                AppTextField(
+                // Title
+                const Text(
+                  'Join Olmeg Connect',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const Text(
+                  'Create your account to start buying & selling',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xl),
+
+                // Name
+                TextFormField(
+                  controller: _nameCtrl,
+                  style: const TextStyle(color: AppColors.textPrimary),
+                  decoration: const InputDecoration(
+                    labelText: 'Full Name',
+                    prefixIcon: Icon(Icons.person_outline, color: AppColors.textSecondary),
+                  ),
+                  validator: (v) =>
+                      v == null || v.isEmpty ? 'Name is required' : null,
+                ),
+                const SizedBox(height: AppSpacing.lg),
+
+                // Email
+                TextFormField(
+                  controller: _emailCtrl,
+                  keyboardType: TextInputType.emailAddress,
+                  style: const TextStyle(color: AppColors.textPrimary),
+                  decoration: const InputDecoration(
+                    labelText: 'Email',
+                    prefixIcon: Icon(Icons.email_outlined, color: AppColors.textSecondary),
+                  ),
+                  validator: (v) {
+                    if (v == null || v.isEmpty) return 'Email is required';
+                    if (!v.contains('@')) return 'Enter a valid email';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: AppSpacing.lg),
+
+                // Password
+                TextFormField(
+                  controller: _passCtrl,
+                  obscureText: _obscurePassword,
+                  style: const TextStyle(color: AppColors.textPrimary),
+                  decoration: InputDecoration(
+                    labelText: 'Password',
+                    prefixIcon: const Icon(Icons.lock_outline, color: AppColors.textSecondary),
+                    suffixIcon: GestureDetector(
+                      onTap: () => setState(() => _obscurePassword = !_obscurePassword),
+                      child: Icon(
+                        _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                  validator: (v) {
+                    if (v == null || v.isEmpty) return 'Password is required';
+                    if (v.length < 6) return 'Password must be at least 6 characters';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: AppSpacing.lg),
+
+                // Confirm Password
+                TextFormField(
                   controller: _confirmCtrl,
-                  label: 'Confirm Password',
-                  prefixIcon: Icons.lock_outline,
-                  isPassword: true,
+                  obscureText: _obscureConfirm,
+                  style: const TextStyle(color: AppColors.textPrimary),
+                  decoration: InputDecoration(
+                    labelText: 'Confirm Password',
+                    prefixIcon: const Icon(Icons.lock_outline, color: AppColors.textSecondary),
+                    suffixIcon: GestureDetector(
+                      onTap: () => setState(() => _obscureConfirm = !_obscureConfirm),
+                      child: Icon(
+                        _obscureConfirm ? Icons.visibility_off : Icons.visibility,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
                   validator: (v) {
                     if (v != _passCtrl.text) return 'Passwords do not match';
                     return null;
                   },
                 ),
-                const Gap(32),
-                AppButton(label: 'Create Account', onPressed: _signUp, isLoading: _isLoading),
-                const Gap(16),
+                const SizedBox(height: AppSpacing.xl),
+
+                // Submit Button
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _signUp,
+                    child: _isLoading
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.background,
+                            ),
+                          )
+                        : const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.person_add),
+                              SizedBox(width: AppSpacing.sm),
+                              Text(
+                                'Create Account',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.lg),
+
+                // Sign In Link
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text('Already have an account? '),
+                    const Text(
+                      'Already have an account? ',
+                      style: TextStyle(color: AppColors.textSecondary),
+                    ),
                     GestureDetector(
                       onTap: () => context.pop(),
-                      child: const Text('Sign In', style: TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.w600)),
+                      child: const Text(
+                        'Sign In',
+                        style: TextStyle(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ],
                 ),

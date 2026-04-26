@@ -9,6 +9,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
 
   firebase_core: ^4.7.0
   firebase_auth: ^6.4.0
@@ -26,6 +28,8 @@ dependencies:
   equatable: ^2.0.5
   dartz: ^0.10.1
   state_notifier: ^1.0.0
+  shared_preferences: ^2.2.2
+  timeago: ^3.6.1
 
 dev_dependencies:
   flutter_test:

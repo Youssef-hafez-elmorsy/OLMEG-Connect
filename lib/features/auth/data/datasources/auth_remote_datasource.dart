@@ -56,7 +56,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       final user = credential.user;
       
       if (user == null) {
-        throw AuthFailure('No user returned after sign in.');
+        throw const AuthFailure('No user returned after sign in.');
       }
       
       print('[Auth] User signed in: ${user.uid}');
@@ -92,7 +92,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       final user = credential.user;
       
       if (user == null) {
-        throw AuthFailure('No user returned after sign up.');
+        throw const AuthFailure('No user returned after sign up.');
       }
       
       print('[Auth] User created: ${user.uid}');

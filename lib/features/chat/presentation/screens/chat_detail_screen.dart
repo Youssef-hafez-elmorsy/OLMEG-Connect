@@ -1,15 +1,15 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import '../../../auth/presentation/providers/auth_provider.dart';
-import '../../data/models/chat_model.dart';
-import '../providers/chat_provider.dart';
-import '../../../../core/theme/app_theme.dart';
+import 'package:olmeg_connect/core/theme/app_theme.dart';
+import 'package:olmeg_connect/features/auth/presentation/providers/auth_provider.dart';
+import 'package:olmeg_connect/features/chat/data/models/chat_model.dart';
+import 'package:olmeg_connect/features/chat/presentation/providers/chat_provider.dart';
 
 class ChatDetailScreen extends ConsumerStatefulWidget {
   final ChatModel chat;
+
   const ChatDetailScreen({super.key, required this.chat});
 
   @override
@@ -30,12 +30,12 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
 
   void _sendMessage() async {
     if (_messageCtrl.text.trim().isEmpty) return;
-    
+
     final user = ref.read(authStateProvider).value;
     if (user == null) return;
 
     setState(() => _isLoading = true);
-    
+
     final error = await ref.read(chatNotifierProvider.notifier).sendMessage(
       chatId: widget.chat.id,
       senderId: user.id,
@@ -44,16 +44,15 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
     );
 
     setState(() => _isLoading = false);
-    
+
     if (error != null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error), backgroundColor: Colors.red),
+          SnackBar(content: Text(error), backgroundColor: AppColors.error),
         );
       }
     } else {
       _messageCtrl.clear();
-      // Scroll to bottom
       if (mounted) {
         Future.delayed(const Duration(milliseconds: 100), () {
           if (_scrollController.hasClients) {
@@ -72,38 +71,48 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
   Widget build(BuildContext context) {
     final user = ref.watch(authStateProvider).value;
     if (user == null) {
-      return const Scaffold(body: Center(child: Text('Please sign in')));
+      return const Scaffold(
+        backgroundColor: AppColors.background,
+        body: Center(
+          child: Text('Please sign in', style: TextStyle(color: AppColors.textPrimary)),
+        ),
+      );
     }
 
     final isBuyer = widget.chat.buyerId == user.id;
     final otherUser = isBuyer ? widget.chat.sellerName : widget.chat.buyerName;
 
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
+        backgroundColor: AppColors.background,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+          onPressed: () => context.pop(),
+        ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(otherUser, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-            Text(widget.chat.productTitle, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+            Text(
+              otherUser,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            Text(
+              widget.chat.productTitle,
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+              ),
+            ),
           ],
         ),
       ),
       body: Column(
         children: [
-          // Product info bar
-          Container(
-            padding: const EdgeInsets.all(12),
-            color: Colors.grey.shade50,
-            child: Row(
-              children: [
-                Icon(Icons.shopping_bag_outlined, color: AppTheme.primaryColor),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(widget.chat.productTitle, style: const TextStyle(fontWeight: FontWeight.w500)),
-                ),
-              ],
-            ),
-          ),
           // Messages
           Expanded(
             child: widget.chat.messages.isEmpty
@@ -111,17 +120,27 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.chat_bubble_outline, size: 48, color: Colors.grey.shade300),
-                        const SizedBox(height: 8),
-                        Text('No messages yet', style: TextStyle(color: Colors.grey.shade500)),
-                        const SizedBox(height: 4),
-                        Text('Say hello to $otherUser!', style: TextStyle(color: Colors.grey.shade400)),
+                        const Icon(
+                          Icons.chat_bubble_outline,
+                          size: 48,
+                          color: AppColors.textSecondary,
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        const Text(
+                          'No messages yet',
+                          style: TextStyle(color: AppColors.textPrimary),
+                        ),
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          'Say hello to $otherUser!',
+                          style: const TextStyle(color: AppColors.textSecondary),
+                        ),
                       ],
                     ),
                   )
                 : ListView.builder(
                     controller: _scrollController,
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(AppSpacing.md),
                     itemCount: widget.chat.messages.length,
                     itemBuilder: (context, index) {
                       final message = widget.chat.messages[index];
@@ -137,11 +156,15 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
           ),
           // Input
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(AppSpacing.md),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppColors.surface,
               boxShadow: [
-                BoxShadow(color: Colors.grey.shade200, blurRadius: 4, offset: const Offset(0, -2)),
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.1),
+                  blurRadius: 4,
+                  offset: const Offset(0, -2),
+                ),
               ],
             ),
             child: Row(
@@ -149,26 +172,50 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
                 Expanded(
                   child: TextField(
                     controller: _messageCtrl,
+                    style: const TextStyle(color: AppColors.textPrimary),
                     decoration: InputDecoration(
                       hintText: 'Type a message...',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
+                      hintStyle: const TextStyle(color: AppColors.textSecondary),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: BorderSide.none,
+                      ),
                       filled: true,
-                      fillColor: Colors.grey.shade100,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      fillColor: AppColors.card,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.lg,
+                        vertical: AppSpacing.md,
+                      ),
                     ),
                     maxLines: 3,
                     minLines: 1,
                   ),
                 ),
-                const SizedBox(width: 8),
-                CircleAvatar(
-                  backgroundColor: AppTheme.primaryColor,
-                  child: _isLoading
-                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : IconButton(
-                          icon: const Icon(Icons.send, color: Colors.white),
-                          onPressed: _sendMessage,
-                        ),
+                const SizedBox(width: AppSpacing.sm),
+                GestureDetector(
+                  onTap: _isLoading ? null : _sendMessage,
+                  child: Container(
+                    width: 44,
+                    height: 44,
+                    decoration: const BoxDecoration(
+                      color: AppColors.primary,
+                      shape: BoxShape.circle,
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.background,
+                            ),
+                          )
+                        : const Icon(
+                            Icons.send,
+                            color: AppColors.background,
+                            size: 20,
+                          ),
+                  ),
                 ),
               ],
             ),
@@ -197,11 +244,14 @@ class _MessageBubble extends StatelessWidget {
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
         decoration: BoxDecoration(
-          color: isMe ? AppTheme.primaryColor : Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(16).copyWith(
+          color: isMe ? AppColors.primary : AppColors.surface,
+          borderRadius: BorderRadius.circular(AppRadius.lg).copyWith(
             bottomRight: isMe ? const Radius.circular(4) : null,
             bottomLeft: !isMe ? const Radius.circular(4) : null,
           ),
@@ -210,11 +260,20 @@ class _MessageBubble extends StatelessWidget {
           crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: [
             if (!isMe)
-              Text(senderName, style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
-            Text(content, style: TextStyle(color: isMe ? Colors.white : Colors.black87)),
+              Text(
+                senderName,
+                style: const TextStyle(fontSize: 10, color: AppColors.textSecondary),
+              ),
+            Text(
+              content,
+              style: TextStyle(color: isMe ? AppColors.background : AppColors.textPrimary),
+            ),
             Text(
               DateFormat('h:mm a').format(time),
-              style: TextStyle(fontSize: 10, color: isMe ? Colors.white70 : Colors.grey.shade500),
+              style: TextStyle(
+                fontSize: 10,
+                color: isMe ? AppColors.background.withValues(alpha: 0.7) : AppColors.textSecondary,
+              ),
             ),
           ],
         ),
