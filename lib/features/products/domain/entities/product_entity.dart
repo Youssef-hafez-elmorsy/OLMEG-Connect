@@ -8,6 +8,9 @@ class ProductEntity extends Equatable {
   final double? originalPrice;
   final String category;
   final String? subcategory;
+  final String? categoryId;
+  final String? subCategoryId;
+  final String? subCategoryName;
   final String? condition;
   final String imageUrl;
   final List<String> images;
@@ -34,6 +37,9 @@ class ProductEntity extends Equatable {
     this.originalPrice,
     required this.category,
     this.subcategory,
+    this.categoryId,
+    this.subCategoryId,
+    this.subCategoryName,
     this.condition,
     required this.imageUrl,
     this.images = const [],
@@ -72,6 +78,9 @@ class ProductEntity extends Equatable {
     double? originalPrice,
     String? category,
     String? subcategory,
+    String? categoryId,
+    String? subCategoryId,
+    String? subCategoryName,
     String? condition,
     String? imageUrl,
     List<String>? images,
@@ -98,6 +107,9 @@ class ProductEntity extends Equatable {
       originalPrice: originalPrice ?? this.originalPrice,
       category: category ?? this.category,
       subcategory: subcategory ?? this.subcategory,
+      categoryId: categoryId ?? this.categoryId,
+      subCategoryId: subCategoryId ?? this.subCategoryId,
+      subCategoryName: subCategoryName ?? this.subCategoryName,
       condition: condition ?? this.condition,
       imageUrl: imageUrl ?? this.imageUrl,
       images: images ?? this.images,

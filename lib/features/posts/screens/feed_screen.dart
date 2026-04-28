@@ -25,12 +25,14 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
         title: const Text('Olmeg Connect'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.gamepad),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const _DemoPostsView()),
-            ),
-            tooltip: 'Demo',
+            icon: const Icon(Icons.refresh),
+            onPressed: () => setState(() {}),
+            tooltip: 'Refresh',
+          ),
+          IconButton(
+            icon: const Icon(Icons.add),
+            onPressed: () => _navigateToCreatePost(context),
+            tooltip: 'Create Post',
           ),
           FutureBuilder<UserIdentity?>(
             future: UserService().getUser(),

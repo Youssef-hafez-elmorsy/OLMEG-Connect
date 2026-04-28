@@ -12,8 +12,8 @@ class ProductRepositoryImpl implements ProductRepository {
   ProductRepositoryImpl(this._dataSource);
 
   @override
-  Stream<List<ProductEntity>> getProducts({String? category}) =>
-      _dataSource.getProducts(category: category);
+  Stream<List<ProductEntity>> getProducts({String? categoryId}) =>
+      _dataSource.getProducts(categoryId: categoryId);
 
   @override
   Stream<List<ProductEntity>> getUserProducts(String userId) =>

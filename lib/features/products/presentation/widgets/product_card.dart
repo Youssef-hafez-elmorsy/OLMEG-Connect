@@ -8,7 +8,9 @@ import '../../domain/entities/product_entity.dart';
 
 class ProductCard extends StatelessWidget {
   final ProductEntity product;
-  const ProductCard({super.key, required this.product});
+  final VoidCallback? onDelete;
+  final VoidCallback? onFavorite;
+  const ProductCard({super.key, required this.product, this.onDelete, this.onFavorite});
 
   @override
   Widget build(BuildContext context) {
@@ -16,35 +18,81 @@ class ProductCard extends StatelessWidget {
       onTap: () => context.push('/product/${product.id}', extra: product),
       child: Card(
         clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Stack(
           children: [
-            Expanded(
-              child: _buildImage(),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: _buildImage(),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(product.title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
+                      const SizedBox(height: 4),
+                      Text(
+                        NumberFormat.currency(symbol: '\$').format(product.price),
+                        style: const TextStyle(color: Color(0xFF6C63FF), fontWeight: FontWeight.bold, fontSize: 15),
+                      ),
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: _categoryColor(product.category).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          product.category.isNotEmpty ? product.category : 'Uncategorized',
+                          style: TextStyle(color: _categoryColor(product.category), fontSize: 11, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(product.title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
-                  const SizedBox(height: 4),
-                  Text(
-                    NumberFormat.currency(symbol: '\$').format(product.price),
-                    style: const TextStyle(color: Color(0xFF6C63FF), fontWeight: FontWeight.bold, fontSize: 15),
-                  ),
-                  const SizedBox(height: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: _categoryColor(product.category).withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(product.category, style: TextStyle(color: _categoryColor(product.category), fontSize: 11, fontWeight: FontWeight.w600)),
-                  ),
-                ],
+            if (onDelete != null || onFavorite != null)
+              Positioned(
+                top: 4,
+                right: 4,
+                child: Row(
+                  children: [
+                    if (onFavorite != null)
+                      GestureDetector(
+                        onTap: onFavorite,
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.5),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            product.isFavorite ? Icons.favorite : Icons.favorite_border,
+                            color: product.isFavorite ? Colors.red : Colors.white,
+                            size: 18,
+                          ),
+                        ),
+                      ),
+                    if (onDelete != null) ...[
+                      const SizedBox(width: 4),
+                      GestureDetector(
+                        onTap: onDelete,
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.5),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.delete, color: Colors.white, size: 18),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
-            ),
           ],
         ),
       ),

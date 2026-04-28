@@ -8,7 +8,7 @@ import '../repositories/product_repository.dart';
 class GetProductsUseCase {
   final ProductRepository repository;
   GetProductsUseCase(this.repository);
-  Stream<List<ProductEntity>> call({String? category}) => repository.getProducts(category: category);
+  Stream<List<ProductEntity>> call({String? categoryId}) => repository.getProducts(categoryId: categoryId);
 }
 
 class GetUserProductsUseCase {

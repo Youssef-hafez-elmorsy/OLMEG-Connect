@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:olmeg_connect/core/theme/app_theme.dart';
 import 'package:olmeg_connect/core/widgets/common_widgets.dart';
 import 'package:olmeg_connect/core/widgets/product_color_swatch.dart' as swatch;
 import 'package:olmeg_connect/features/products/domain/entities/product_entity.dart';
 import 'package:olmeg_connect/features/products/presentation/providers/product_provider.dart';
 import 'package:olmeg_connect/features/auth/presentation/providers/auth_provider.dart';
+import 'package:olmeg_connect/features/chat/presentation/providers/chat_provider.dart';
 
 class ProductDetailScreen extends ConsumerStatefulWidget {
   final ProductEntity product;
@@ -40,6 +42,29 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     setState(() => _isFavorite = !_isFavorite);
     
     await ref.read(favoriteNotifierProvider.notifier).toggleFavorite(widget.product.id);
+  }
+
+  void _startChat(BuildContext context, WidgetRef ref) async {
+    final user = ref.read(authStateProvider).value;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please sign in to chat')),
+      );
+      return;
+    }
+
+    final chatId = await ref.read(chatNotifierProvider.notifier).createChat(
+      productId: widget.product.id,
+      productTitle: widget.product.title,
+      buyerId: user.id,
+      buyerName: user.name,
+      sellerId: widget.product.sellerId,
+      sellerName: widget.product.sellerName,
+    );
+
+    if (chatId != null && context.mounted) {
+      context.push('/chat/$chatId');
+    }
   }
 
   @override
@@ -223,14 +248,14 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                     onChanged: (q) => setState(() => _quantity = q),
                   ),
                   const Divider(height: AppSpacing.xl),
-                  SellerCard(
-                    name: product.sellerName,
-                    avatarUrl: product.sellerAvatar,
-                    rating: product.sellerRating,
-                    productsCount: product.sellerProducts,
-                    onMessage: isOwner ? null : () {},
-                    onCall: isOwner ? null : () {},
-                  ),
+                  if (!isOwner)
+                    SellerCard(
+                      name: product.sellerName,
+                      avatarUrl: product.sellerAvatar,
+                      rating: product.sellerRating,
+                      productsCount: product.sellerProducts,
+                      onMessage: () => _startChat(context, ref),
+                    ),
                   const SizedBox(height: AppSpacing.xxl),
                 ],
               ),

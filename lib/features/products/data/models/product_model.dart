@@ -12,6 +12,9 @@ class ProductModel extends ProductEntity {
     required super.sellerId,
     required super.sellerName,
     required super.createdAt,
+    super.categoryId,
+    super.subCategoryId,
+    super.subCategoryName,
   });
 
   factory ProductModel.fromFirestore(DocumentSnapshot doc) {
@@ -21,22 +24,31 @@ class ProductModel extends ProductEntity {
       title: d['title'] ?? '',
       description: d['description'] ?? '',
       price: (d['price'] as num?)?.toDouble() ?? 0.0,
-      category: d['category'] ?? '',
+      category: d['categoryName'] ?? d['category'] ?? '',
       imageUrl: d['imageUrl'] ?? '',
       sellerId: d['sellerId'] ?? '',
       sellerName: d['sellerName'] ?? '',
       createdAt: (d['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      categoryId: d['categoryId'] as String?,
+      subCategoryId: d['subCategoryId'] as String?,
+      subCategoryName: d['subCategoryName'] as String?,
     );
   }
 
-  Map<String, dynamic> toFirestore() => {
-        'title': title,
-        'description': description,
-        'price': price,
-        'category': category,
-        'imageUrl': imageUrl,
-        'sellerId': sellerId,
-        'sellerName': sellerName,
-        'createdAt': Timestamp.fromDate(createdAt),
-      };
+  Map<String, dynamic> toFirestore() {
+    final map = <String, dynamic>{
+      'title': title,
+      'description': description,
+      'price': price,
+      'imageUrl': imageUrl,
+      'sellerId': sellerId,
+      'sellerName': sellerName,
+      'createdAt': Timestamp.fromDate(createdAt),
+    };
+    if (category.isNotEmpty) map['categoryName'] = category;
+    if (categoryId != null) map['categoryId'] = categoryId;
+    if (subCategoryId != null) map['subCategoryId'] = subCategoryId;
+    if (subCategoryName != null) map['subCategoryName'] = subCategoryName;
+    return map;
+  }
 }

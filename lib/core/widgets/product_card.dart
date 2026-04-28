@@ -7,12 +7,14 @@ class ProductCard extends StatelessWidget {
   final ProductEntity product;
   final VoidCallback? onTap;
   final VoidCallback? onFavorite;
+  final VoidCallback? onDelete;
 
   const ProductCard({
     super.key,
     required this.product,
     this.onTap,
     this.onFavorite,
+    this.onDelete,
   });
 
   @override
@@ -64,6 +66,26 @@ class ProductCard extends StatelessWidget {
                       ),
                     ),
                   ),
+                  if (onDelete != null)
+                    Positioned(
+                      top: AppSpacing.sm,
+                      right: 40,
+                      child: GestureDetector(
+                        onTap: onDelete,
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withValues(alpha: 0.8),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.delete,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                        ),
+                      ),
+                    ),
                   if (product.category.isNotEmpty)
                     Positioned(
                       top: AppSpacing.sm,

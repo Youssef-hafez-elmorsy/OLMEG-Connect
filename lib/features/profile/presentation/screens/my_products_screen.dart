@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:olmeg_connect/core/theme/app_theme.dart';
 import 'package:olmeg_connect/core/widgets/product_card.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:olmeg_connect/features/auth/presentation/providers/auth_provider.dart';
 import 'package:olmeg_connect/features/products/domain/entities/product_entity.dart';
 
@@ -14,9 +14,17 @@ class MyProductsScreen extends ConsumerWidget {
     final user = ref.watch(authStateProvider).value;
     
     if (user == null) {
-      return const Scaffold(
+      return Scaffold(
         backgroundColor: AppColors.background,
-        body: Center(child: Text('Please sign in')),
+        appBar: AppBar(
+          backgroundColor: AppColors.background,
+          title: const Text('My Products'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        body: const Center(child: Text('Please sign in')),
       );
     }
 
@@ -43,24 +51,25 @@ class MyProductsScreen extends ConsumerWidget {
           }
           
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(
+            return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.inventory_2_outlined, size: 64, color: AppColors.textSecondary),
-                  SizedBox(height: AppSpacing.md),
-                  Text('No products yet', style: TextStyle(color: AppColors.textSecondary, fontSize: 16)),
-                  SizedBox(height: AppSpacing.sm),
-                  Text('Tap + to add your first product', style: TextStyle(color: AppColors.textSecondary)),
+                  const Icon(Icons.inventory_2_outlined, size: 64, color: AppColors.textSecondary),
+                  const SizedBox(height: 16),
+                  const Text('No products yet', style: TextStyle(color: AppColors.textSecondary, fontSize: 16)),
+                  const SizedBox(height: 8),
+                  const Text('Tap + to add your first product', style: TextStyle(color: AppColors.textSecondary)),
                 ],
               ),
             );
           }
 
           final products = snapshot.data!.docs;
+          final currentUser = ref.watch(authStateProvider).value;
 
           return ListView.builder(
-            padding: const EdgeInsets.all(AppSpacing.md),
+            padding: const EdgeInsets.all(16),
             itemCount: products.length,
             itemBuilder: (context, index) {
               final doc = products[index];
@@ -70,31 +79,88 @@ class MyProductsScreen extends ConsumerWidget {
                 title: data['title'] ?? '',
                 description: data['description'] ?? '',
                 price: (data['price'] as num?)?.toDouble() ?? 0,
-                category: data['category'] ?? '',
+                category: data['categoryName'] ?? data['category'] ?? '',
                 imageUrl: data['imageUrl'] ?? '',
                 sellerId: data['sellerId'] ?? '',
                 sellerName: data['sellerName'] ?? '',
                 createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+                categoryId: data['categoryId'],
+                subCategoryId: data['subCategoryId'],
                 city: data['location'] ?? '',
                 isFavorite: false,
               );
-              return SizedBox(
-                height: 280,
-                child: Dismissible(
-                  key: Key(doc.id),
-                  direction: DismissDirection.endToStart,
-                  background: Container(
-                    alignment: Alignment.centerRight,
-                    padding: const EdgeInsets.only(right: 20),
-                    color: AppColors.error,
-                    child: const Icon(Icons.delete, color: Colors.white),
+
+              // Function to delete product
+              Future<void> deleteProduct() async {
+                final confirmed = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Delete Product'),
+                    content: Text('Are you sure you want to delete "${product.title}"?'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        style: TextButton.styleFrom(foregroundColor: AppColors.error),
+                        child: const Text('Delete'),
+                      ),
+                    ],
                   ),
-                  onDismissed: (_) async {
-                    await FirebaseFirestore.instance.collection('products').doc(doc.id).delete();
-                  },
-                  child: ProductCard(
-                    product: product,
-                    onTap: () {},
+                );
+
+                if (confirmed == true) {
+                  await FirebaseFirestore.instance.collection('products').doc(doc.id).delete();
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Product deleted')),
+                    );
+                  }
+                }
+              }
+
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: SizedBox(
+                  height: 280,
+                  child: Dismissible(
+                    key: Key(doc.id),
+                    direction: DismissDirection.endToStart,
+                    confirmDismiss: (_) async {
+                      return await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Delete Product'),
+                          content: Text('Are you sure you want to delete "${product.title}"?'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, false),
+                              child: const Text('Cancel'),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, true),
+                              style: TextButton.styleFrom(foregroundColor: AppColors.error),
+                              child: const Text('Delete'),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                    onDismissed: (_) async {
+                      await FirebaseFirestore.instance.collection('products').doc(doc.id).delete();
+                    },
+                    background: Container(
+                      alignment: Alignment.centerRight,
+                      padding: const EdgeInsets.only(right: 20),
+                      color: AppColors.error,
+                      child: const Icon(Icons.delete, color: Colors.white),
+                    ),
+                    child: ProductCard(
+                      product: product,
+                      onDelete: currentUser?.id == product.sellerId ? deleteProduct : null,
+                    ),
                   ),
                 ),
               );

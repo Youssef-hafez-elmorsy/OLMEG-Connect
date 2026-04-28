@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:olmeg_connect/core/theme/app_theme.dart';
 import 'package:olmeg_connect/core/widgets/product_card.dart';
 import 'package:olmeg_connect/features/products/domain/entities/product_entity.dart';
+import 'package:olmeg_connect/features/products/presentation/providers/product_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:olmeg_connect/features/auth/presentation/providers/auth_provider.dart';
 
@@ -51,11 +52,7 @@ class FavoritesScreen extends ConsumerWidget {
             );
           }
           return FutureBuilder(
-            future: FirebaseFirestore.instance
-                .collection('products')
-                .where('id', whereIn: favoriteIds.isNotEmpty ? favoriteIds : [''])
-                .get()
-                .then((snap) => snap.docs),
+            future: _fetchFavoriteProducts(favoriteIds),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator(color: AppColors.primary));
@@ -63,31 +60,20 @@ class FavoritesScreen extends ConsumerWidget {
               if (!snapshot.hasData || snapshot.data!.isEmpty) {
                 return const Center(child: Text('No favorites', style: TextStyle(color: AppColors.textSecondary)));
               }
-              return ListView.builder(
+              return GridView.builder(
                 padding: const EdgeInsets.all(AppSpacing.md),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  childAspectRatio: 0.72,
+                  crossAxisSpacing: AppSpacing.md,
+                  mainAxisSpacing: AppSpacing.md,
+                ),
                 itemCount: snapshot.data!.length,
                 itemBuilder: (context, index) {
-                  final doc = snapshot.data![index];
-                  final data = doc.data();
-                  final product = ProductEntity(
-                    id: doc.id,
-                    title: data['title'] ?? '',
-                    description: data['description'] ?? '',
-                    price: (data['price'] as num?)?.toDouble() ?? 0,
-                    category: data['category'] ?? '',
-                    imageUrl: data['imageUrl'] ?? '',
-                    sellerId: data['sellerId'] ?? '',
-                    sellerName: data['sellerName'] ?? '',
-                    createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-                    city: data['location'] ?? '',
-                    isFavorite: true,
-                  );
-                  return SizedBox(
-                    height: 280,
-                    child: ProductCard(
-                      product: product,
-                      onTap: () {},
-                    ),
+                  final product = snapshot.data![index];
+                  return ProductCard(
+                    product: product,
+                    onFavorite: () => _toggleFavorite(context, ref, product.id, product.isFavorite),
                   );
                 },
               );
@@ -96,5 +82,43 @@ class FavoritesScreen extends ConsumerWidget {
         },
       ),
     );
+  }
+
+  Future<List<ProductEntity>> _fetchFavoriteProducts(List<String> favoriteIds) async {
+    if (favoriteIds.isEmpty) return [];
+    
+    final products = <ProductEntity>[];
+    final batch = FirebaseFirestore.instance.batch();
+    
+    for (final id in favoriteIds) {
+      final doc = await FirebaseFirestore.instance.collection('products').doc(id).get();
+      if (doc.exists) {
+        final data = doc.data()!;
+        products.add(ProductEntity(
+          id: doc.id,
+          title: data['title'] ?? '',
+          description: data['description'] ?? '',
+          price: (data['price'] as num?)?.toDouble() ?? 0,
+          category: data['categoryName'] ?? data['category'] ?? '',
+          imageUrl: data['imageUrl'] ?? '',
+          sellerId: data['sellerId'] ?? '',
+          sellerName: data['sellerName'] ?? '',
+          createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+          city: data['location'] ?? '',
+          isFavorite: true,
+        ));
+      }
+    }
+    return products;
+  }
+
+  void _toggleFavorite(BuildContext context, WidgetRef ref, String productId, bool isFavorite) async {
+    await ref.read(favoriteNotifierProvider.notifier).toggleFavorite(productId);
+    ref.invalidate(userFavoritesProvider);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(isFavorite ? 'Removed from favorites' : 'Added to favorites')),
+      );
+    }
   }
 }

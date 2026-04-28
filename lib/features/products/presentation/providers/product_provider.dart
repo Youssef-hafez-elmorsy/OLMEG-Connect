@@ -40,10 +40,9 @@ final selectedCategoryProvider = NotifierProvider<CategoryNotifier, String>(() {
   return CategoryNotifier();
 });
 
-final productsStreamProvider = StreamProvider.family<List<ProductEntity>, String?>((ref, category) {
+final productsStreamProvider = StreamProvider.family<List<ProductEntity>, String?>((ref, categoryId) {
   final useCase = ref.watch(getProductsUseCaseProvider);
-  final cat = category == 'All' ? null : category;
-  return useCase(category: cat);
+  return useCase(categoryId: categoryId);
 });
 
 final userProductsStreamProvider = StreamProvider.family<List<ProductEntity>, String>((ref, userId) {

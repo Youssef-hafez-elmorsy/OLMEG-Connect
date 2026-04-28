@@ -47,6 +47,9 @@ class SettingsNotifier extends Notifier<SettingsState> {
 
   Future<void> setLanguage(AppLanguage language) async {
     state = state.copyWith(language: language);
+    ref.read(localeProvider.notifier).state = language == AppLanguage.arabic 
+        ? const Locale('ar') 
+        : const Locale('en');
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('language', language.index);
   }
@@ -56,13 +59,16 @@ final settingsNotifierProvider = NotifierProvider<SettingsNotifier, SettingsStat
   return SettingsNotifier();
 });
 
-final localeProvider = Provider<Locale>((ref) {
-  final settings = ref.watch(settingsNotifierProvider);
-  switch (settings.language) {
-    case AppLanguage.arabic:
-      return const Locale('ar');
-    case AppLanguage.english:
-    default:
-      return const Locale('en');
+class LocaleNotifier extends Notifier<Locale> {
+  @override
+  Locale build() {
+    final settings = ref.watch(settingsNotifierProvider);
+    return settings.language == AppLanguage.arabic ? 
+      const Locale('ar') : 
+      const Locale('en');
   }
+}
+
+final localeProvider = NotifierProvider<LocaleNotifier, Locale>(() {
+  return LocaleNotifier();
 });
