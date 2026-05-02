@@ -7,6 +7,12 @@ class PostModel {
   final String authorName;
   final String authorAvatarColor;
   final String text;
+  final String? postType; // "made" | "wanted" - null means old post, treat as "made"
+  final String? title;
+  final String? description;
+  final String? category;
+  final double? price;
+  final double? budget;
   final String? bgColor;
   final String? feeling;
   final String? location;
@@ -22,6 +28,12 @@ class PostModel {
     required this.authorName,
     required this.authorAvatarColor,
     required this.text,
+    this.postType,
+    this.title,
+    this.description,
+    this.category,
+    this.price,
+    this.budget,
     this.bgColor,
     this.feeling,
     this.location,
@@ -32,6 +44,11 @@ class PostModel {
     required this.commentCount,
   });
 
+  bool get isMadePost => postType == null || postType == 'made';
+  bool get isWantedPost => postType == 'wanted';
+  String get displayType => isMadePost ? 'For Sale' : 'Request';
+  String? get displayPrice => isMadePost ? price?.toStringAsFixed(0) : budget?.toStringAsFixed(0);
+
   factory PostModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     return PostModel(
@@ -40,6 +57,12 @@ class PostModel {
       authorName: data['authorName'] ?? '',
       authorAvatarColor: data['authorAvatarColor'] ?? '0xFF9E9E9E',
       text: data['text'] ?? '',
+      postType: data['postType'],
+      title: data['title'],
+      description: data['description'],
+      category: data['category'],
+      price: data['price']?.toDouble(),
+      budget: data['budget']?.toDouble(),
       bgColor: data['bgColor'],
       feeling: data['feeling'],
       location: data['location'],
@@ -64,6 +87,12 @@ class PostModel {
       'authorName': authorName,
       'authorAvatarColor': authorAvatarColor,
       'text': text,
+      'postType': postType,
+      'title': title,
+      'description': description,
+      'category': category,
+      'price': price,
+      'budget': budget,
       'bgColor': bgColor,
       'feeling': feeling,
       'location': location,

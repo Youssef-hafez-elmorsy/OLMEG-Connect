@@ -8,7 +8,6 @@ import 'package:olmeg_connect/features/posts/services/firestore_service.dart';
 import 'package:olmeg_connect/features/posts/services/user_service.dart';
 import 'package:olmeg_connect/features/posts/widgets/avatar_widget.dart';
 import 'package:olmeg_connect/features/posts/widgets/image_preview_grid.dart';
-import 'package:olmeg_connect/features/posts/widgets/post_card.dart';
 
 class CreatePostScreen extends ConsumerStatefulWidget {
   const CreatePostScreen({super.key});
@@ -18,20 +17,26 @@ class CreatePostScreen extends ConsumerStatefulWidget {
 }
 
 class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
-  final _textController = TextEditingController();
+  String _postType = 'made';
+  
+  final _titleController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final _priceController = TextEditingController();
+  final _categoryController = TextEditingController();
+  
   List<XFile> _selectedImages = [];
   List<double> _uploadProgress = [];
   String _audience = 'public';
-  String? _bgColor;
-  String? _feeling;
-  String? _location;
   bool _isPosting = false;
 
   final _picker = ImagePicker();
 
   @override
   void dispose() {
-    _textController.dispose();
+    _titleController.dispose();
+    _descriptionController.dispose();
+    _priceController.dispose();
+    _categoryController.dispose();
     super.dispose();
   }
 
@@ -44,13 +49,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
       appBar: AppBar(
         title: const Text('Create Post'),
         leading: GestureDetector(
-          onTap: () {
-            if (Navigator.canPop(context)) {
-              Navigator.pop(context);
-            } else {
-              Navigator.of(context, rootNavigator: true).pop();
-            }
-          },
+          onTap: () => Navigator.of(context, rootNavigator: true).pop(),
           child: Container(
             width: 44,
             height: 44,
@@ -92,8 +91,12 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildUserHeader(context),
-                  _buildAudienceRow(context),
-                  _buildTextField(context),
+                  _buildPostTypeToggle(context),
+                  _buildTitleField(context),
+                  _buildCategoryField(context),
+                  _buildDescriptionField(context),
+                  if (_postType == 'made') _buildPriceField(context),
+                  if (_postType == 'wanted') _buildBudgetField(context),
                   if (_selectedImages.isNotEmpty) _buildImagePreview(context),
                   _buildAttachmentOptions(context),
                 ],
@@ -158,8 +161,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(user?.displayName ?? 'User', style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold)),
-                    if (_feeling != null)
-                      Text(_feeling!, style: Theme.of(context).textTheme.bodySmall),
+                    Text(_postType == 'made' ? 'Selling' : 'Looking for', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.primary)),
                   ],
                 ),
               ),
@@ -170,80 +172,119 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     );
   }
 
-  Widget _buildAudienceRow(BuildContext context) {
+  Widget _buildPostTypeToggle(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Row(
-        children: [
-          PopupMenuButton<String>(
-            initialValue: _audience,
-            onSelected: (value) => setState(() => _audience = value),
-            child: Row(
-              children: [
-                Icon(AudienceOptions.getIcon(_audience), size: 18, color: colorScheme.primary),
-                const SizedBox(width: 4),
-                Text(_audience == 'public' ? 'Public' : _audience == 'friends' ? 'Friends' : 'Only Me', style: TextStyle(color: colorScheme.primary)),
-                Icon(Icons.expand_more, size: 18, color: colorScheme.primary),
-              ],
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Container(
+        decoration: BoxDecoration(
+          color: colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: GestureDetector(
+                onTap: () => setState(() => _postType = 'made'),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    color: _postType == 'made' ? colorScheme.primary : Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Center(
+                    child: Text(
+                      'I Made Products',
+                      style: TextStyle(
+                        color: _postType == 'made' ? colorScheme.onPrimary : colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ),
-            itemBuilder: (context) => [
-              const PopupMenuItem(value: 'public', child: Row(children: [Icon(Icons.public), SizedBox(width: 8), Text('Public')])),
-              const PopupMenuItem(value: 'friends', child: Row(children: [Icon(Icons.people), SizedBox(width: 8), Text('Friends')])),
-              const PopupMenuItem(value: 'only_me', child: Row(children: [Icon(Icons.lock), SizedBox(width: 8), Text('Only Me')])),
-            ],
-          ),
-        ],
+            Expanded(
+              child: GestureDetector(
+                onTap: () => setState(() => _postType = 'wanted'),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    color: _postType == 'wanted' ? colorScheme.primary : Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Center(
+                    child: Text(
+                      'I Want Products',
+                      style: TextStyle(
+                        color: _postType == 'wanted' ? colorScheme.onPrimary : colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildTextField(BuildContext context) {
+  Widget _buildTitleField(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final text = _textController.text;
-
-    if (_bgColor != null) {
-      return Container(
-        margin: const EdgeInsets.all(12),
-        height: 200,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: BackgroundGradients.getGradient(_bgColor!),
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(8),
+    return Padding(
+      padding: const EdgeInsets.all(12),
+      child: TextField(
+        controller: _titleController,
+        decoration: InputDecoration(
+          labelText: _postType == 'made' ? 'Title (e.g., Beautiful Handmade Vase)' : 'What are you looking for?',
+          hintText: _postType == 'made' ? 'Enter product title' : 'Describe what you need',
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+          prefixIcon: Icon(_postType == 'made' ? Icons.sell : Icons.search),
         ),
-        child: Center(
-          child: TextField(
-            controller: _textController,
-            maxLines: null,
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
-            decoration: InputDecoration(
-              hintText: "What's on your mind?",
-              hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.all(16),
-            ),
-            onChanged: (_) => setState(() {}),
-          ),
-        ),
-      );
-    }
+        onChanged: (_) => setState(() {}),
+      ),
+    );
+  }
 
+  Widget _buildCategoryField(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final categories = ['New', 'Used', 'Handicraft', 'Jewelry', 'Electronics', 'Clothing', 'Home', 'Sports', 'Books', 'Toys'];
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: DropdownButtonFormField<String>(
+        value: _categoryController.text.isEmpty ? null : _categoryController.text,
+        decoration: InputDecoration(
+          labelText: 'Category',
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+          prefixIcon: const Icon(Icons.category),
+        ),
+        items: categories.map((cat) => DropdownMenuItem(value: cat, child: Text(cat))).toList(),
+        onChanged: (value) {
+          setState(() {
+            _categoryController.text = value ?? '';
+          });
+        },
+      ),
+    );
+  }
+
+  Widget _buildDescriptionField(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final text = _descriptionController.text;
     return Padding(
       padding: const EdgeInsets.all(12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           TextField(
-            controller: _textController,
+            controller: _descriptionController,
             maxLines: null,
             minLines: 3,
             decoration: InputDecoration(
-              hintText: "What's on your mind?",
-              hintStyle: TextStyle(color: colorScheme.onSurfaceVariant),
+              labelText: 'Description',
+              hintText: 'Describe your product or what you need...',
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
             ),
             onChanged: (_) => setState(() {}),
@@ -254,9 +295,46 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     );
   }
 
+  Widget _buildPriceField(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: TextField(
+        controller: _priceController,
+        keyboardType: TextInputType.number,
+        decoration: InputDecoration(
+          labelText: 'Price (optional)',
+          hintText: 'Enter price',
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+          prefixIcon: const Icon(Icons.attach_money),
+          suffixText: 'USD',
+        ),
+        onChanged: (_) => setState(() {}),
+      ),
+    );
+  }
+
+  Widget _buildBudgetField(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: TextField(
+        controller: _priceController,
+        keyboardType: TextInputType.number,
+        decoration: InputDecoration(
+          labelText: 'Budget (optional)',
+          hintText: 'Enter your budget',
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+          prefixIcon: const Icon(Icons.account_balance_wallet),
+          suffixText: 'USD',
+        ),
+        onChanged: (_) => setState(() {}),
+      ),
+    );
+  }
+
   Widget _buildImagePreview(BuildContext context) {
     if (_selectedImages.isEmpty) return const SizedBox.shrink();
-    
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: ImagePreviewGrid(
@@ -280,10 +358,6 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
         child: Row(
           children: [
             _AttachmentButton(icon: Icons.photo, label: 'Photo', onTap: _pickImages),
-            _AttachmentButton(icon: Icons.tag, label: 'Tag', onTap: _showTagSheet),
-            _AttachmentButton(icon: Icons.emoji_emotions, label: 'Feeling', onTap: _showFeelingSheet),
-            _AttachmentButton(icon: Icons.location_on, label: 'Location', onTap: _showLocationSheet),
-            _AttachmentButton(icon: Icons.format_color_fill, label: 'Background', onTap: _showBackgroundSheet),
           ],
         ),
       ),
@@ -291,7 +365,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   }
 
   bool _canPost() {
-    return _textController.text.trim().isNotEmpty || _selectedImages.isNotEmpty;
+    return _titleController.text.trim().isNotEmpty || _descriptionController.text.trim().isNotEmpty || _selectedImages.isNotEmpty;
   }
 
   Future<void> _pickImages() async {
@@ -304,155 +378,10 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     }
   }
 
-  void _showTagSheet() {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Tag someone', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
-            TextField(
-              decoration: InputDecoration(hintText: 'Enter name', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))),
-              onSubmitted: (value) {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Tagged: $value')));
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showFeelingSheet() {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('How are you feeling?', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: Feelings.options.map((f) {
-                return GestureDetector(
-                  onTap: () {
-                    setState(() => _feeling = '${f['emoji']} ${f['label']}');
-                    Navigator.pop(context);
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Theme.of(context).colorScheme.outline),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(f['emoji']!, style: const TextStyle(fontSize: 20)),
-                        const SizedBox(width: 4),
-                        Text(f['label']!),
-                      ],
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showLocationSheet() {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Add location', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
-            TextField(
-              decoration: InputDecoration(hintText: 'Enter location', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))),
-              onSubmitted: (value) {
-                setState(() => _location = value);
-                Navigator.pop(context);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showBackgroundSheet() {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Choose Background', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                ...BackgroundGradients.gradients.keys.map((key) {
-                  final colors = BackgroundGradients.getGradient(key);
-                  return GestureDetector(
-                    onTap: () {
-                      setState(() => _bgColor = key);
-                      Navigator.pop(context);
-                    },
-                    child: Container(
-                      width: 60,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(colors: colors),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  );
-                }),
-                GestureDetector(
-                  onTap: () {
-                    setState(() => _bgColor = null);
-                    Navigator.pop(context);
-                  },
-                  child: Container(
-                    width: 60,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Theme.of(context).colorScheme.outline),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Center(child: Text('None')),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Future<void> _handlePost() async {
     if (!_canPost()) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please write something or add a photo!')),
+        const SnackBar(content: Text('Please fill in the title or add a photo!')),
       );
       return;
     }
@@ -460,29 +389,35 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     try {
       final user = await UserService().getUser();
       if (user == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Please login first to create a post!')),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Please login first to create a post!')),
+          );
+        }
         return;
       }
 
       setState(() => _isPosting = true);
 
       List<String> imageUrls = [];
-
       if (_selectedImages.isNotEmpty) {
         imageUrls = await FirestoreService.uploadImages(_selectedImages, user.userId);
       }
+
+      final price = _priceController.text.trim().isNotEmpty ? double.tryParse(_priceController.text.trim()) : null;
 
       final post = PostModel(
         id: PostModel.generateId(),
         authorId: user.userId,
         authorName: user.displayName,
         authorAvatarColor: user.avatarColor,
-        text: _textController.text.trim(),
-        bgColor: _bgColor,
-        feeling: _feeling,
-        location: _location,
+        text: _descriptionController.text.trim(),
+        postType: _postType,
+        title: _titleController.text.trim(),
+        description: _descriptionController.text.trim(),
+        category: _categoryController.text.trim().isNotEmpty ? _categoryController.text.trim() : null,
+        price: _postType == 'made' ? price : null,
+        budget: _postType == 'wanted' ? price : null,
         imageURLs: imageUrls,
         audience: _audience,
         createdAt: DateTime.now(),

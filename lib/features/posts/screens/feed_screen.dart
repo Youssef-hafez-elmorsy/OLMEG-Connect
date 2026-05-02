@@ -15,6 +15,8 @@ class FeedScreen extends ConsumerStatefulWidget {
 }
 
 class _FeedScreenState extends ConsumerState<FeedScreen> {
+  String _postTypeFilter = 'all';
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -22,34 +24,58 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Olmeg Connect'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () => setState(() {}),
-            tooltip: 'Refresh',
+        toolbarHeight: 110, // زيادة الطول لتكفي العناصر الجديدة
+        titleSpacing: 16,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // السطر الأول: العنوان والبروفايل
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Olmeg Connect', style: TextStyle(fontWeight: FontWeight.bold)),
+                FutureBuilder<UserIdentity?>(
+                  future: UserService().getUser(),
+                  builder: (context, snapshot) {
+                    final user = snapshot.data;
+                    return user != null
+                        ? AvatarWidget(
+                            name: user.displayName,
+                            avatarColor: user.avatarColor,
+                            radius: 18,
+                          )
+                        : const SizedBox.shrink();
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            // السطر الثاني: شريط التنقل (Home, Create, Profile)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _NavButton(icon: Icons.home, label: 'Home', isActive: true, onTap: () {}),
+                _NavButton(
+                  icon: Icons.add_circle_outline,
+                  label: 'Create',
+                  isActive: false,
+                  onTap: () => _navigateToCreatePost(context),
+                ),
+                _NavButton(icon: Icons.person_outline, label: 'Profile', isActive: false, onTap: () {}),
+              ],
+            ),
+          ],
+        ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(50),
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 8.0, left: 12, right: 12),
+            child: _buildFilterRow(context),
           ),
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () => _navigateToCreatePost(context),
-            tooltip: 'Create Post',
-          ),
-          FutureBuilder<UserIdentity?>(
-            future: UserService().getUser(),
-            builder: (context, snapshot) {
-              final user = snapshot.data;
-              return user != null
-                  ? Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: AvatarWidget(name: user.displayName, avatarColor: user.avatarColor, radius: 16),
-                    )
-                  : const SizedBox.shrink();
-            },
-          ),
-        ],
+        ),
       ),
       body: StreamBuilder<List<PostModel>>(
-        stream: FirestoreService.getPostsStream(),
+        stream: FirestoreService.getPostsStream(postType: _postTypeFilter),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -89,12 +115,6 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                           Icon(Icons.article_outlined, size: 64, color: colorScheme.onSurfaceVariant),
                           const SizedBox(height: 16),
                           Text('No posts yet', style: TextStyle(color: colorScheme.onSurfaceVariant)),
-                          const SizedBox(height: 16),
-                          ElevatedButton.icon(
-                            onPressed: () => _navigateToCreatePost(context),
-                            icon: const Icon(Icons.add),
-                            label: const Text('Create First Post'),
-                          ),
                         ],
                       ),
                     ),
@@ -121,78 +141,41 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
     );
   }
 
-  Widget _buildStoriesRow(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Container(
-      height: 100,
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        itemCount: 6,
-        itemBuilder: (context, index) {
-          if (index == 0) {
-            return Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: Column(
-                children: [
-                  Container(
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: colorScheme.outline, width: 2),
-                    ),
-                    child: Icon(Icons.add, color: colorScheme.onSurfaceVariant),
-                  ),
-                  const SizedBox(height: 4),
-                  Text('Add', style: theme.textTheme.bodySmall),
-                ],
-              ),
-            );
-          }
-
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: Column(
-              children: [
-                Container(
-                  width: 60,
-                  height: 60,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: const LinearGradient(
-                      colors: [Colors.purple, Colors.blue],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    border: Border.all(color: Colors.transparent, width: 2),
-                  ),
-                  child: CircleAvatar(
-                    backgroundColor: Colors.grey[300],
-                    radius: 26,
-                    child: Text('U$index', style: const TextStyle(color: Colors.white, fontSize: 12)),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text('User $index', style: theme.textTheme.bodySmall),
-              ],
-            ),
-          );
-        },
-      ),
+  Widget _buildFilterRow(BuildContext context) {
+    return Row(
+      children: [
+        _AnimatedFilterChip(
+          label: 'All',
+          isSelected: _postTypeFilter == 'all',
+          onTap: () => setState(() => _postTypeFilter = 'all'),
+        ),
+        const SizedBox(width: 8),
+        _AnimatedFilterChip(
+          label: 'Made',
+          isSelected: _postTypeFilter == 'made',
+          onTap: () => setState(() => _postTypeFilter = 'made'),
+        ),
+        const SizedBox(width: 8),
+        _AnimatedFilterChip(
+          label: 'Wanted',
+          isSelected: _postTypeFilter == 'wanted',
+          onTap: () => setState(() => _postTypeFilter = 'wanted'),
+        ),
+      ],
     );
   }
 
   Widget _buildCreatePostShortcut(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       child: Card(
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+          side: BorderSide(color: colorScheme.outlineVariant),
+        ),
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Row(
@@ -201,23 +184,26 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                 future: UserService().getUser(),
                 builder: (context, snapshot) {
                   final user = snapshot.data;
-                  return user != null
-                      ? AvatarWidget(name: user.displayName, avatarColor: user.avatarColor, radius: 20)
-                      : CircleAvatar(radius: 20);
+                  return AvatarWidget(
+                    name: user?.displayName ?? "U",
+                    avatarColor: user?.avatarColor ?? "0xFF888888",
+                    radius: 20,
+                  );
                 },
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: InkWell(
                   onTap: () => _navigateToCreatePost(context),
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(25),
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     decoration: BoxDecoration(
-                      border: Border.all(color: colorScheme.outline),
-                      borderRadius: BorderRadius.circular(20),
+                      color: colorScheme.surfaceVariant.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(25),
                     ),
-                    child: Text("What's on your mind?", style: TextStyle(color: colorScheme.onSurfaceVariant)),
+                    child: Text("What's on your mind?", 
+                      style: TextStyle(color: colorScheme.onSurfaceVariant)),
                   ),
                 ),
               ),
@@ -233,132 +219,91 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
   }
 }
 
-class _DemoPostsView extends StatelessWidget {
-  const _DemoPostsView();
+// ويدجت أزرار التنقل مع أنيميشن بسيط
+class _NavButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool isActive;
+  final VoidCallback onTap;
+
+  const _NavButton({
+    required this.icon,
+    required this.label,
+    required this.isActive,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final color = isActive ? colorScheme.primary : colorScheme.onSurfaceVariant;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('🎮 Demo'),
-        backgroundColor: colorScheme.surface,
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Card(
-            color: colorScheme.primaryContainer,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.info_outline, color: colorScheme.onPrimaryContainer),
-                      const SizedBox(width: 8),
-                      Text('وضع التجربة', style: TextStyle(
-                        color: colorScheme.onPrimaryContainer,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      )),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'هذا وضع محاكاة لتجربة التطبيق',
-                    style: TextStyle(color: colorScheme.onPrimaryContainer),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          _buildDemoPost(
-            context,
-            authorName: 'أحمد محمد',
-            authorColor: '0xFFE53935',
-            text: 'مرحباً! هذا منشور تجريبي. اضغط على زر "Share" للمشاركة! 👆',
-            feeling: '😊 Happy',
-            hoursAgo: 2,
-            audience: 'public',
-          ),
-          const SizedBox(height: 16),
-          _buildDemoPost(
-            context,
-            authorName: 'سارة علي',
-            authorColor: '0xFF5E35B1',
-            text: 'منظر جميل من الطبيعة! 🌄',
-            imageUrl: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800',
-            hoursAgo: 5,
-            audience: 'friends',
-          ),
-          const SizedBox(height: 16),
-          _buildDemoPost(
-            context,
-            authorName: 'محمد خالد',
-            authorColor: '0xFF1E88E5',
-            text: 'يوم جميل للتفكير الإيجابي! ✨',
-            bgColor: 'sunset',
-            hoursAgo: 8,
-            audience: 'public',
-          ),
-          const SizedBox(height: 16),
-          _buildDemoPost(
-            context,
-            authorName: 'فاطمة عمر',
-            authorColor: '0xFF43A047',
-            text: 'عائلة سعيدة! ❤️',
-            imageUrls: [
-              'https://images.unsplash.com/photo-1511895426328-dc8714191300?w=400',
-              'https://images.unsplash.com/photo-1516627145497-ae6968895b74?w=400',
-              'https://images.unsplash.com/photo-1504439468489-c8920d796a29?w=400',
-            ],
-            hoursAgo: 12,
-            audience: 'friends',
-          ),
-        ],
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        decoration: BoxDecoration(
+          color: isActive ? color.withOpacity(0.1) : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: color, size: 24),
+            Text(label, style: TextStyle(color: color, fontSize: 12, fontWeight: isActive ? FontWeight.bold : FontWeight.normal)),
+          ],
+        ),
       ),
     );
   }
+}
 
-  Widget _buildDemoPost(
-    BuildContext context, {
-    required String authorName,
-    required String authorColor,
-    required String text,
-    String? feeling,
-    String? imageUrl,
-    List<String>? imageUrls,
-    String? bgColor,
-    required int hoursAgo,
-    required String audience,
-  }) {
-    final images = <String>[];
-    if (imageUrl != null) images.add(imageUrl);
-    if (imageUrls != null) images.addAll(imageUrls);
+// ويدجت الفلتر مع أنيميشن التكبير واللون
+class _AnimatedFilterChip extends StatelessWidget {
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
 
-    final post = PostModel(
-      id: 'demo_${DateTime.now().millisecondsSinceEpoch}',
-      authorId: 'demo_user',
-      authorName: authorName,
-      authorAvatarColor: authorColor,
-      text: text,
-      bgColor: bgColor,
-      feeling: feeling,
-      imageURLs: images,
-      audience: audience,
-      createdAt: DateTime.now().subtract(Duration(hours: hoursAgo)),
-      reactions: {'like': ['user1', 'user2'], 'love': ['user3']},
-      commentCount: 5,
-    );
+  const _AnimatedFilterChip({
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
 
-    return PostCard(
-      post: post,
-      onDelete: () => ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('🗑️ تم حذف المنشور')),
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeInOut,
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected ? colorScheme.primary : Colors.transparent,
+            borderRadius: BorderRadius.circular(25),
+            border: Border.all(
+              color: isSelected ? colorScheme.primary : colorScheme.outline,
+              width: 1,
+            ),
+            boxShadow: isSelected 
+              ? [BoxShadow(color: colorScheme.primary.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 2))]
+              : [],
+          ),
+          child: AnimatedDefaultTextStyle(
+            duration: const Duration(milliseconds: 200),
+            style: TextStyle(
+              color: isSelected ? colorScheme.onPrimary : colorScheme.onSurface,
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+            ),
+            child: Text(label, textAlign: TextAlign.center),
+          ),
+        ),
       ),
     );
   }

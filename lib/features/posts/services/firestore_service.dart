@@ -13,16 +13,32 @@ class FirestoreService {
 
   static CollectionReference get _postsRef => _firestore.collection('posts');
   
-  static Stream<List<PostModel>> getPostsStream({int limit = 20, DocumentSnapshot? lastDoc}) {
+  static Stream<List<PostModel>> getPostsStream({int limit = 20, DocumentSnapshot? lastDoc, String? postType}) {
     Query query = _postsRef.orderBy('createdAt', descending: true).limit(limit);
     if (lastDoc != null) {
       query = query.startAfterDocument(lastDoc);
     }
-    return query.snapshots().map((snap) => snap.docs.map((doc) => PostModel.fromFirestore(doc)).toList());
+    // Note: Firestore requires composite index for (where + orderBy on different fields)
+    // To avoid index errors, we fetch then filter client-side when postType is specified
+    return query.snapshots().map((snap) {
+      var posts = snap.docs.map((doc) => PostModel.fromFirestore(doc)).toList();
+      if (postType != null && postType != 'all') {
+        posts = posts.where((p) => (p.isMadePost && postType == 'made') || (p.isWantedPost && postType == 'wanted')).toList();
+      }
+      return posts;
+    });
   }
 
-  static Stream<List<PostModel>> getUserPostsStream(String authorId) {
-    return _postsRef.where('authorId', isEqualTo: authorId).orderBy('createdAt', descending: true).snapshots().map((snap) => snap.docs.map((doc) => PostModel.fromFirestore(doc)).toList());
+  static Stream<List<PostModel>> getUserPostsStream(String authorId, {String? postType}) {
+    Query query = _postsRef.where('authorId', isEqualTo: authorId).orderBy('createdAt', descending: true);
+    // Use client-side filtering to avoid composite index requirement
+    return query.snapshots().map((snap) {
+      var posts = snap.docs.map((doc) => PostModel.fromFirestore(doc)).toList();
+      if (postType != null && postType != 'all') {
+        posts = posts.where((p) => (p.isMadePost && postType == 'made') || (p.isWantedPost && postType == 'wanted')).toList();
+      }
+      return posts;
+    });
   }
 
   static Future<void> createPost(PostModel post) async {

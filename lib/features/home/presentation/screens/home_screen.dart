@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -11,8 +10,6 @@ import 'package:olmeg_connect/features/products/presentation/providers/category_
 import 'package:olmeg_connect/features/products/presentation/providers/product_provider.dart';
 import 'package:olmeg_connect/features/products/presentation/widgets/product_card.dart';
 import 'package:olmeg_connect/features/auth/presentation/providers/auth_provider.dart';
-import 'package:olmeg_connect/features/chat/presentation/providers/chat_provider.dart';
-import 'package:olmeg_connect/features/products/data/services/category_service.dart';
 import 'package:olmeg_connect/features/profile/presentation/screens/favorites_screen.dart';
 
 class SelectedHomeCategoryNotifier extends Notifier<CategoryEntity?> {

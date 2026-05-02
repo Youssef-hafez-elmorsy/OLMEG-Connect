@@ -81,74 +81,139 @@ class _PostCardState extends ConsumerState<PostCard> {
 
     return Padding(
       padding: const EdgeInsets.all(12),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          AvatarWidget(
-            name: post.authorName,
-            avatarColor: post.authorAvatarColor,
-            radius: 22,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+          Row(
+            children: [
+              AvatarWidget(
+                name: post.authorName,
+                avatarColor: post.authorAvatarColor,
+                radius: 22,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(post.authorName, style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold)),
-                    if (post.feeling != null) ...[
-                      const SizedBox(width: 4),
-                      Text('is feeling ${post.feeling}', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant)),
-                    ],
+                    Row(
+                      children: [
+                        Text(post.authorName, style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold)),
+                        if (post.feeling != null) ...[
+                          const SizedBox(width: 4),
+                          Text('is feeling ${post.feeling}', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant)),
+                        ],
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        Text(timeago.format(post.createdAt), style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant)),
+                        const SizedBox(width: 4),
+                        Icon(AudienceOptions.getIcon(post.audience), size: 14, color: colorScheme.onSurfaceVariant),
+                      ],
+                    ),
                   ],
                 ),
-                Row(
-                  children: [
-                    Text(timeago.format(post.createdAt), style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant)),
-                    const SizedBox(width: 4),
-                    Icon(AudienceOptions.getIcon(post.audience), size: 14, color: colorScheme.onSurfaceVariant),
-                  ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: post.isMadePost ? Colors.green.shade100 : Colors.orange.shade100,
+                  borderRadius: BorderRadius.circular(12),
                 ),
-              ],
-            ),
-          ),
-          PopupMenuButton<String>(
-            onSelected: (value) => _handleMenuAction(value, context),
-            itemBuilder: (context) => [
-              if (user?.userId == post.authorId) ...[
-                const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete, color: Colors.red), SizedBox(width: 8), Text('Delete Post', style: TextStyle(color: Colors.red))])),
-              ] else ...[
-                const PopupMenuItem(value: 'save', child: Row(children: [Icon(Icons.bookmark_border), SizedBox(width: 8), Text('Save Post')])),
-                const PopupMenuItem(value: 'copy', child: Row(children: [Icon(Icons.link), SizedBox(width: 8), Text('Copy Link')])),
-                const PopupMenuItem(value: 'report', child: Row(children: [Icon(Icons.flag, color: Colors.orange), SizedBox(width: 8), Text('Report Post')])),
+                child: Text(
+                  post.displayType,
+                  style: TextStyle(
+                    color: post.isMadePost ? Colors.green.shade800 : Colors.orange.shade800,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              if (post.displayPrice != null) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '\$${post.displayPrice}',
+                    style: TextStyle(
+                      color: colorScheme.onPrimaryContainer,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
               ],
             ],
           ),
-          InkWell(
-            onTap: () => _showShareSheet(context),
-            borderRadius: BorderRadius.circular(20),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          if (post.title != null && post.title!.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              post.title!,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+            ),
+          ],
+          if (post.category != null && post.category!.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
-                color: colorScheme.primary,
-                borderRadius: BorderRadius.circular(20),
+                color: colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(4),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.share, size: 20, color: colorScheme.onPrimary),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Share',
-                    style: TextStyle(
-                      color: colorScheme.onPrimary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
+              child: Text(
+                post.category!,
+                style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
+          ],
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              PopupMenuButton<String>(
+                onSelected: (value) => _handleMenuAction(value, context),
+                itemBuilder: (context) => [
+                  if (user?.userId == post.authorId) ...[
+                    const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete, color: Colors.red), SizedBox(width: 8), Text('Delete Post', style: TextStyle(color: Colors.red))])),
+                  ] else ...[
+                    const PopupMenuItem(value: 'save', child: Row(children: [Icon(Icons.bookmark_border), SizedBox(width: 8), Text('Save Post')])),
+                    const PopupMenuItem(value: 'copy', child: Row(children: [Icon(Icons.link), SizedBox(width: 8), Text('Copy Link')])),
+                    const PopupMenuItem(value: 'report', child: Row(children: [Icon(Icons.flag, color: Colors.orange), SizedBox(width: 8), Text('Report Post')])),
+                  ],
+                ],
+              ),
+              InkWell(
+                onTap: () => _showShareSheet(context),
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: colorScheme.primary,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.share, size: 20, color: colorScheme.onPrimary),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Share',
+                        style: TextStyle(
+                          color: colorScheme.onPrimary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
