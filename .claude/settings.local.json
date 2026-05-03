@@ -2,7 +2,11 @@
   "permissions": {
     "allow": [
       "mcp__ide__getDiagnostics",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(flutter *)",
+      "Bash(.\\\\gradlew.bat assembleDebug)",
+      "Bash(cmd /c gradlew.bat assembleDebug)"
     ]
   }
 }
