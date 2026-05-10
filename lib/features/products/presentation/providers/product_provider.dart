@@ -108,7 +108,7 @@ class FavoriteNotifier extends Notifier<AsyncValue<void>> {
 
       final firestore = FirebaseFirestore.instance;
       final favoriteRef = firestore.collection('favorites').doc('${user.id}_$productId');
-      
+
       final doc = await favoriteRef.get();
       if (doc.exists) {
         await favoriteRef.delete();
@@ -120,7 +120,7 @@ class FavoriteNotifier extends Notifier<AsyncValue<void>> {
         });
       }
     } catch (e) {
-      print('Error toggling favorite: $e');
+      // Silently fail
     }
   }
 }

@@ -15,6 +15,9 @@ class ProductModel extends ProductEntity {
     super.categoryId,
     super.subCategoryId,
     super.subCategoryName,
+    super.images = const [],
+    super.city = '',
+    super.condition,
   });
 
   factory ProductModel.fromFirestore(DocumentSnapshot doc) {
@@ -26,12 +29,15 @@ class ProductModel extends ProductEntity {
       price: (d['price'] as num?)?.toDouble() ?? 0.0,
       category: d['categoryName'] ?? d['category'] ?? '',
       imageUrl: d['imageUrl'] ?? '',
+      images: List<String>.from(d['images'] ?? const []),
       sellerId: d['sellerId'] ?? '',
       sellerName: d['sellerName'] ?? '',
       createdAt: (d['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       categoryId: d['categoryId'] as String?,
       subCategoryId: d['subCategoryId'] as String?,
       subCategoryName: d['subCategoryName'] as String?,
+      city: d['city'] as String? ?? d['location'] as String? ?? '',
+      condition: d['condition'] as String?,
     );
   }
 
@@ -46,6 +52,9 @@ class ProductModel extends ProductEntity {
       'createdAt': Timestamp.fromDate(createdAt),
     };
     if (category.isNotEmpty) map['categoryName'] = category;
+    if (images.isNotEmpty) map['images'] = images;
+    if (city.isNotEmpty) map['city'] = city;
+    if (condition != null) map['condition'] = condition;
     if (categoryId != null) map['categoryId'] = categoryId;
     if (subCategoryId != null) map['subCategoryId'] = subCategoryId;
     if (subCategoryName != null) map['subCategoryName'] = subCategoryName;

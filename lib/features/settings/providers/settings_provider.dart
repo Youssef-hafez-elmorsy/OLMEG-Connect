@@ -32,10 +32,16 @@ class SettingsNotifier extends Notifier<SettingsState> {
     final prefs = await SharedPreferences.getInstance();
     final isDark = prefs.getBool('isDarkMode') ?? true;
     final langIndex = prefs.getInt('language') ?? 0;
+    final language = AppLanguage.values[langIndex];
     state = SettingsState(
       isDarkMode: isDark,
-      language: AppLanguage.values[langIndex],
+      language: language,
     );
+    // Update locale when loading settings
+    final newLocale = language == AppLanguage.arabic
+        ? const Locale('ar')
+        : const Locale('en');
+    ref.read(localeProvider.notifier).setLocale(newLocale);
   }
 
   Future<void> toggleDarkMode() async {
@@ -47,9 +53,10 @@ class SettingsNotifier extends Notifier<SettingsState> {
 
   Future<void> setLanguage(AppLanguage language) async {
     state = state.copyWith(language: language);
-    ref.read(localeProvider.notifier).state = language == AppLanguage.arabic 
-        ? const Locale('ar') 
+    final newLocale = language == AppLanguage.arabic
+        ? const Locale('ar')
         : const Locale('en');
+    ref.read(localeProvider.notifier).setLocale(newLocale);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('language', language.index);
   }
@@ -62,10 +69,11 @@ final settingsNotifierProvider = NotifierProvider<SettingsNotifier, SettingsStat
 class LocaleNotifier extends Notifier<Locale> {
   @override
   Locale build() {
-    final settings = ref.watch(settingsNotifierProvider);
-    return settings.language == AppLanguage.arabic ? 
-      const Locale('ar') : 
-      const Locale('en');
+    return const Locale('en');
+  }
+
+  void setLocale(Locale locale) {
+    state = locale;
   }
 }
 

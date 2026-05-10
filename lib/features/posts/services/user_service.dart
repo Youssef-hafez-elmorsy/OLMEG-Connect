@@ -1,5 +1,6 @@
-import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import 'package:olmeg_connect/features/posts/models/post_model.dart';
 
 class UserService {
@@ -7,9 +8,24 @@ class UserService {
     final authUser = FirebaseAuth.instance.currentUser;
     if (authUser == null) return null;
 
+    String? profileImageUrl;
+    String name = authUser.displayName ?? authUser.email?.split('@').first ?? 'User';
+
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(authUser.uid)
+          .get();
+      if (doc.exists) {
+        profileImageUrl = doc.data()?['photoUrl'];
+        name = doc.data()?['name'] ?? name;
+      }
+    } catch (_) {}
+
     return UserIdentity(
       userId: authUser.uid,
-      displayName: authUser.displayName ?? authUser.email?.split('@').first ?? 'User',
+      displayName: name,
+      profileImageUrl: profileImageUrl,
       avatarColor: '0xFF1E88E5',
     );
   }

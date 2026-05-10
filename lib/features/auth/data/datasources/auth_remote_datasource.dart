@@ -43,6 +43,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       email: user.email ?? '',
       name: user.displayName ?? '',
       photoUrl: user.photoURL,
+      role: 'user',
       createdAt: DateTime.now(),
     );
   }
@@ -50,35 +51,32 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   @override
   Future<UserModel> signIn({required String email, required String password}) async {
     try {
-      print('[Auth] Signing in with email: $email');
-      
       final credential = await _auth.signInWithEmailAndPassword(email: email, password: password);
       final user = credential.user;
-      
+
       if (user == null) {
         throw const AuthFailure('No user returned after sign in.');
       }
-      
-      print('[Auth] User signed in: ${user.uid}');
-      
+
       final doc = await _firestore.collection(AppConstants.usersCollection).doc(user.uid).get();
-      
+
       if (doc.exists) {
-        print('[Auth] User data found in Firestore');
         return UserModel.fromFirestore(doc);
       }
-      
-      print('[Auth] Creating new user data in Firestore');
-      return UserModel(id: user.uid, email: user.email ?? '', name: user.displayName ?? '', createdAt: DateTime.now());
-      
+
+      return UserModel(
+        id: user.uid,
+        email: user.email ?? '',
+        name: user.displayName ?? '',
+        role: 'user',
+        createdAt: DateTime.now(),
+      );
+
     } on FirebaseAuthException catch (e) {
-      print('[Auth] FirebaseAuthException: ${e.code} - ${e.message}');
       throw AuthFailure(_mapAuthError(e.code));
     } on FirebaseException catch (e) {
-      print('[Auth] FirebaseException: ${e.code} - ${e.message}');
       throw AuthFailure('Firebase error: ${e.message}');
     } catch (e) {
-      print('[Auth] Unexpected error: $e');
       throw AuthFailure('Error: $e');
     }
   }
@@ -86,35 +84,33 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   @override
   Future<UserModel> signUp({required String email, required String password, required String name}) async {
     try {
-      print('[Auth] Signing up with email: $email, name: $name');
-      
       final credential = await _auth.createUserWithEmailAndPassword(email: email, password: password);
       final user = credential.user;
-      
+
       if (user == null) {
         throw const AuthFailure('No user returned after sign up.');
       }
-      
-      print('[Auth] User created: ${user.uid}');
-      
+
       // Update display name
       await user.updateDisplayName(name);
-      
+
       // Create user document in Firestore
-      final model = UserModel(id: user.uid, email: email, name: name, createdAt: DateTime.now());
+      final model = UserModel(
+        id: user.uid,
+        email: email,
+        name: name,
+        role: 'user',
+        createdAt: DateTime.now(),
+      );
       await _firestore.collection(AppConstants.usersCollection).doc(user.uid).set(model.toFirestore());
-      
-      print('[Auth] User data saved to Firestore');
+
       return model;
-      
+
     } on FirebaseAuthException catch (e) {
-      print('[Auth] FirebaseAuthException: ${e.code} - ${e.message}');
       throw AuthFailure(_mapAuthError(e.code));
     } on FirebaseException catch (e) {
-      print('[Auth] FirebaseException: ${e.code} - ${e.message}');
       throw AuthFailure('Firebase error: ${e.message}');
     } catch (e) {
-      print('[Auth] Unexpected error: $e');
       throw AuthFailure('Error: $e');
     }
   }
@@ -123,9 +119,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   Future<void> signOut() async {
     try {
       await _auth.signOut();
-      print('[Auth] User signed out');
     } catch (e) {
-      print('[Auth] Sign out error: $e');
       throw AuthFailure('Failed to sign out: $e');
     }
   }

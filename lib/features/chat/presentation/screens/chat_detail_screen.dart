@@ -37,11 +37,11 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
     setState(() => _isLoading = true);
 
     final error = await ref.read(chatNotifierProvider.notifier).sendMessage(
-      chatId: widget.chat.id,
-      senderId: user.id,
-      senderName: user.name,
-      content: _messageCtrl.text.trim(),
-    );
+          chatId: widget.chat.id,
+          senderId: user.id,
+          senderName: user.name,
+          content: _messageCtrl.text.trim(),
+        );
 
     setState(() => _isLoading = false);
 
@@ -74,153 +74,207 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
       return const Scaffold(
         backgroundColor: AppColors.background,
         body: Center(
-          child: Text('Please sign in', style: TextStyle(color: AppColors.textPrimary)),
+          child: Text('Please sign in',
+              style: TextStyle(color: AppColors.textPrimary)),
         ),
       );
     }
 
-    final isBuyer = widget.chat.buyerId == user.id;
-    final otherUser = isBuyer ? widget.chat.sellerName : widget.chat.buyerName;
+    final chatAsync = ref.watch(chatByIdProvider(widget.chat.id));
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.background,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
-          onPressed: () => context.pop(),
+      body: chatAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, _) => Center(
+          child: Text('Error: $error',
+              style: const TextStyle(color: AppColors.error)),
         ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              otherUser,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            Text(
-              widget.chat.productTitle,
-              style: const TextStyle(
-                fontSize: 12,
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ],
-        ),
-      ),
-      body: Column(
-        children: [
-          // Messages
-          Expanded(
-            child: widget.chat.messages.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.chat_bubble_outline,
-                          size: 48,
-                          color: AppColors.textSecondary,
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
-                        const Text(
-                          'No messages yet',
-                          style: TextStyle(color: AppColors.textPrimary),
-                        ),
-                        const SizedBox(height: AppSpacing.xs),
-                        Text(
-                          'Say hello to $otherUser!',
-                          style: const TextStyle(color: AppColors.textSecondary),
-                        ),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.all(AppSpacing.md),
-                    itemCount: widget.chat.messages.length,
-                    itemBuilder: (context, index) {
-                      final message = widget.chat.messages[index];
-                      final isMe = message['senderId'] == user.id;
-                      return _MessageBubble(
-                        content: message['content'],
-                        senderName: message['senderName'],
-                        isMe: isMe,
-                        time: DateTime.tryParse(message['createdAt'] ?? '') ?? DateTime.now(),
-                      );
-                    },
-                  ),
-          ),
-          // Input
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.1),
-                  blurRadius: 4,
-                  offset: const Offset(0, -2),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _messageCtrl,
-                    style: const TextStyle(color: AppColors.textPrimary),
-                    decoration: InputDecoration(
-                      hintText: 'Type a message...',
-                      hintStyle: const TextStyle(color: AppColors.textSecondary),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
-                        borderSide: BorderSide.none,
-                      ),
-                      filled: true,
-                      fillColor: AppColors.card,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.lg,
-                        vertical: AppSpacing.md,
+        data: (latestChat) {
+          final chat = latestChat ?? widget.chat;
+          final liveIsBuyer = chat.buyerId == user.id;
+          final otherUser = liveIsBuyer ? chat.sellerName : chat.buyerName;
+
+          return Column(
+            children: [
+              SafeArea(
+                bottom: false,
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(8, 8, 16, 12),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    border: Border(
+                      bottom: BorderSide(
+                        color: AppColors.divider.withValues(alpha: 0.8),
                       ),
                     ),
-                    maxLines: 3,
-                    minLines: 1,
                   ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                GestureDetector(
-                  onTap: _isLoading ? null : _sendMessage,
-                  child: Container(
-                    width: 44,
-                    height: 44,
-                    decoration: const BoxDecoration(
-                      color: AppColors.primary,
-                      shape: BoxShape.circle,
-                    ),
-                    child: _isLoading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: AppColors.background,
-                            ),
-                          )
-                        : const Icon(
-                            Icons.send,
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back,
+                            color: AppColors.textPrimary),
+                        onPressed: () => context.pop(),
+                      ),
+                      CircleAvatar(
+                        backgroundColor: AppColors.primary,
+                        child: Text(
+                          otherUser.isNotEmpty
+                              ? otherUser[0].toUpperCase()
+                              : 'U',
+                          style: const TextStyle(
                             color: AppColors.background,
-                            size: 20,
+                            fontWeight: FontWeight.bold,
                           ),
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.md),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              otherUser,
+                              style: const TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              chat.productTitle,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ],
-            ),
-          ),
-        ],
+              ),
+              Expanded(
+                child: chat.messages.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.chat_bubble_outline,
+                              size: 48,
+                              color: AppColors.textSecondary,
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                            const Text(
+                              'No messages yet',
+                              style: TextStyle(color: AppColors.textPrimary),
+                            ),
+                            const SizedBox(height: AppSpacing.xs),
+                            Text(
+                              'Say hello to $otherUser!',
+                              style: const TextStyle(
+                                  color: AppColors.textSecondary),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        controller: _scrollController,
+                        padding: const EdgeInsets.fromLTRB(
+                          AppSpacing.md,
+                          AppSpacing.lg,
+                          AppSpacing.md,
+                          AppSpacing.lg,
+                        ),
+                        itemCount: chat.messages.length,
+                        itemBuilder: (context, index) {
+                          final message = chat.messages[index];
+                          final isMe = message['senderId'] == user.id;
+                          return _MessageBubble(
+                            content: message['content'],
+                            senderName: message['senderName'],
+                            isMe: isMe,
+                            time:
+                                DateTime.tryParse(message['createdAt'] ?? '') ??
+                                    DateTime.now(),
+                          );
+                        },
+                      ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 4,
+                      offset: const Offset(0, -2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _messageCtrl,
+                        style: const TextStyle(color: AppColors.textPrimary),
+                        decoration: InputDecoration(
+                          hintText: 'Type a message...',
+                          hintStyle:
+                              const TextStyle(color: AppColors.textSecondary),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: BorderSide.none,
+                          ),
+                          filled: true,
+                          fillColor: AppColors.card,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.lg,
+                            vertical: AppSpacing.md,
+                          ),
+                        ),
+                        maxLines: 3,
+                        minLines: 1,
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    GestureDetector(
+                      onTap: _isLoading ? null : _sendMessage,
+                      child: Container(
+                        width: 44,
+                        height: 44,
+                        decoration: const BoxDecoration(
+                          color: AppColors.primary,
+                          shape: BoxShape.circle,
+                        ),
+                        child: _isLoading
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: AppColors.background,
+                                ),
+                              )
+                            : const Icon(
+                                Icons.send,
+                                color: AppColors.background,
+                                size: 20,
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -257,22 +311,27 @@ class _MessageBubble extends StatelessWidget {
           ),
         ),
         child: Column(
-          crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          crossAxisAlignment:
+              isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: [
             if (!isMe)
               Text(
                 senderName,
-                style: const TextStyle(fontSize: 10, color: AppColors.textSecondary),
+                style: const TextStyle(
+                    fontSize: 10, color: AppColors.textSecondary),
               ),
             Text(
               content,
-              style: TextStyle(color: isMe ? AppColors.background : AppColors.textPrimary),
+              style: TextStyle(
+                  color: isMe ? AppColors.background : AppColors.textPrimary),
             ),
             Text(
               DateFormat('h:mm a').format(time),
               style: TextStyle(
                 fontSize: 10,
-                color: isMe ? AppColors.background.withValues(alpha: 0.7) : AppColors.textSecondary,
+                color: isMe
+                    ? AppColors.background.withValues(alpha: 0.7)
+                    : AppColors.textSecondary,
               ),
             ),
           ],

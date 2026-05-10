@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../settings/providers/settings_provider.dart';
 import '../providers/auth_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -30,9 +32,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     setState(() => _isLoading = true);
 
     final error = await ref.read(authNotifierProvider.notifier).signIn(
-      email: _emailCtrl.text.trim(),
-      password: _passCtrl.text.trim(),
-    );
+          email: _emailCtrl.text.trim(),
+          password: _passCtrl.text.trim(),
+        );
 
     if (!mounted) return;
     setState(() => _isLoading = false);
@@ -51,8 +53,71 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+  void _showLanguageDialog() {
+    final currentLang = ref.read(settingsNotifierProvider).language;
+    final l10n = AppLocalizations.of(context);
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: Text(
+          l10n.selectLanguage,
+          style: const TextStyle(color: AppColors.textPrimary),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: Text(
+                l10n.english,
+                style: const TextStyle(color: AppColors.textPrimary),
+              ),
+              leading: Icon(
+                currentLang == AppLanguage.english
+                    ? Icons.radio_button_checked
+                    : Icons.radio_button_unchecked,
+                color: currentLang == AppLanguage.english
+                    ? AppColors.primary
+                    : AppColors.textSecondary,
+              ),
+              onTap: () {
+                ref
+                    .read(settingsNotifierProvider.notifier)
+                    .setLanguage(AppLanguage.english);
+                Navigator.pop(dialogContext);
+              },
+            ),
+            ListTile(
+              title: Text(
+                l10n.arabic,
+                style: const TextStyle(color: AppColors.textPrimary),
+              ),
+              leading: Icon(
+                currentLang == AppLanguage.arabic
+                    ? Icons.radio_button_checked
+                    : Icons.radio_button_unchecked,
+                color: currentLang == AppLanguage.arabic
+                    ? AppColors.primary
+                    : AppColors.textSecondary,
+              ),
+              onTap: () {
+                ref
+                    .read(settingsNotifierProvider.notifier)
+                    .setLanguage(AppLanguage.arabic);
+                Navigator.pop(dialogContext);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -63,8 +128,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Align(
+                  alignment: AlignmentDirectional.centerEnd,
+                  child: IconButton(
+                    tooltip: l10n.language,
+                    icon: const Icon(Icons.language),
+                    color: AppColors.textPrimary,
+                    onPressed: _showLanguageDialog,
+                  ),
+                ),
                 const SizedBox(height: AppSpacing.xxl),
-                // Logo
                 Center(
                   child: Container(
                     width: 80,
@@ -88,93 +161,110 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xl),
-
-                // Title
-                const Center(
+                Center(
                   child: Text(
-                    'Olmeg Connect',
-                    style: TextStyle(
+                    l10n.appName,
+                    style: const TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
                       color: AppColors.primary,
                     ),
                   ),
                 ),
-                const Center(
+                Center(
                   child: Text(
-                    'Your marketplace for everything',
-                    style: TextStyle(
+                    l10n.marketplaceTagline,
+                    style: const TextStyle(
                       color: AppColors.textSecondary,
+                      fontSize: 14,
                     ),
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xxl),
-
-                // Form
-                const Text(
-                  'Welcome back',
-                  style: TextStyle(
+                Text(
+                  l10n.welcomeBack,
+                  style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
                     color: AppColors.textPrimary,
                   ),
                 ),
-                const Text(
-                  'Sign in to your account',
-                  style: TextStyle(
+                const SizedBox(height: 4),
+                Text(
+                  l10n.signInToAccount,
+                  style: const TextStyle(
                     color: AppColors.textSecondary,
+                    fontSize: 14,
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xl),
-
-                // Email
                 TextFormField(
                   controller: _emailCtrl,
                   keyboardType: TextInputType.emailAddress,
                   style: const TextStyle(color: AppColors.textPrimary),
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    hintText: 'you@example.com',
-                    prefixIcon: Icon(Icons.email_outlined, color: AppColors.textSecondary),
+                  decoration: InputDecoration(
+                    labelText: l10n.email,
+                    hintText: l10n.emailHint,
+                    prefixIcon: const Icon(Icons.email_outlined,
+                        color: AppColors.textSecondary),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                      vertical: AppSpacing.md,
+                    ),
                   ),
                   validator: (v) {
-                    if (v == null || v.isEmpty) return 'Email is required';
-                    if (!v.contains('@')) return 'Enter a valid email';
+                    if (v == null || v.isEmpty) return l10n.emailRequired;
+                    if (!v.contains('@')) return l10n.validEmail;
                     return null;
                   },
                 ),
                 const SizedBox(height: AppSpacing.lg),
-
-                // Password
                 TextFormField(
                   controller: _passCtrl,
                   obscureText: _obscurePassword,
                   style: const TextStyle(color: AppColors.textPrimary),
                   decoration: InputDecoration(
-                    labelText: 'Password',
-                    prefixIcon: const Icon(Icons.lock_outline, color: AppColors.textSecondary),
+                    labelText: l10n.password,
+                    prefixIcon: const Icon(Icons.lock_outline,
+                        color: AppColors.textSecondary),
                     suffixIcon: GestureDetector(
-                      onTap: () => setState(() => _obscurePassword = !_obscurePassword),
+                      onTap: () =>
+                          setState(() => _obscurePassword = !_obscurePassword),
                       child: Icon(
-                        _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                        _obscurePassword
+                            ? Icons.visibility_off
+                            : Icons.visibility,
                         color: AppColors.textSecondary,
                       ),
                     ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                      vertical: AppSpacing.md,
+                    ),
                   ),
                   validator: (v) {
-                    if (v == null || v.isEmpty) return 'Password is required';
-                    if (v.length < 6) return 'Password must be at least 6 characters';
+                    if (v == null || v.isEmpty) return l10n.passwordRequired;
+                    if (v.length < 6) return l10n.passwordTooShort;
                     return null;
                   },
                 ),
                 const SizedBox(height: AppSpacing.xl),
-
-                // Submit Button
                 SizedBox(
                   width: double.infinity,
                   height: 52,
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : _signIn,
+                    style: ElevatedButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                      ),
+                    ),
                     child: _isLoading
                         ? const SizedBox(
                             width: 24,
@@ -184,14 +274,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               color: AppColors.background,
                             ),
                           )
-                        : const Row(
+                        : Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.login),
-                              SizedBox(width: AppSpacing.sm),
+                              const Icon(Icons.login),
+                              const SizedBox(width: AppSpacing.sm),
                               Text(
-                                'Sign In',
-                                style: TextStyle(
+                                l10n.signIn,
+                                style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -201,22 +291,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: AppSpacing.lg),
-
-                // Sign Up Link
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text(
-                      "Don't have an account? ",
-                      style: TextStyle(color: AppColors.textSecondary),
+                    Text(
+                      l10n.noAccount,
+                      style: const TextStyle(
+                          color: AppColors.textSecondary, fontSize: 14),
                     ),
                     GestureDetector(
                       onTap: () => context.push('/register'),
-                      child: const Text(
-                        'Sign Up',
-                        style: TextStyle(
+                      child: Text(
+                        l10n.signUp,
+                        style: const TextStyle(
                           color: AppColors.primary,
                           fontWeight: FontWeight.w600,
+                          fontSize: 14,
                         ),
                       ),
                     ),

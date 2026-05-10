@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:olmeg_connect/core/localization/app_localizations.dart';
 import 'package:olmeg_connect/core/theme/app_theme.dart';
 import 'package:olmeg_connect/features/settings/providers/settings_provider.dart';
 
@@ -10,12 +11,13 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(settingsNotifierProvider);
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: AppColors.background,
-        title: const Text('Settings'),
+        title: Text(l10n.settings),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
           onPressed: () => Navigator.pop(context),
@@ -26,42 +28,47 @@ class SettingsScreen extends ConsumerWidget {
         children: [
           _SettingsTile(
             icon: Icons.light_mode,
-            title: 'Light Mode',
+            title: l10n.lightMode,
             trailing: Switch(
               value: !settings.isDarkMode,
-              onChanged: (_) => ref.read(settingsNotifierProvider.notifier).toggleDarkMode(),
+              onChanged: (_) =>
+                  ref.read(settingsNotifierProvider.notifier).toggleDarkMode(),
               activeTrackColor: AppColors.primary.withValues(alpha: 0.5),
               thumbColor: WidgetStateProperty.resolveWith((states) {
-                if (states.contains(WidgetState.selected)) return AppColors.primary;
+                if (states.contains(WidgetState.selected)) {
+                  return AppColors.primary;
+                }
                 return AppColors.textSecondary;
               }),
             ),
           ),
           _SettingsTile(
             icon: Icons.language,
-            title: 'Language',
-            subtitle: settings.language == AppLanguage.arabic ? 'العربية' : 'English',
+            title: l10n.language,
+            subtitle: settings.language == AppLanguage.arabic
+                ? l10n.arabic
+                : l10n.english,
             onTap: () => _showLanguageDialog(context, ref),
           ),
           _SettingsTile(
             icon: Icons.notifications,
-            title: 'Notifications',
+            title: l10n.notifications,
             onTap: () {},
           ),
           _SettingsTile(
             icon: Icons.privacy_tip,
-            title: 'Privacy Policy',
+            title: l10n.privacyPolicy,
             onTap: () => context.push('/privacy-policy'),
           ),
           _SettingsTile(
             icon: Icons.description,
-            title: 'Terms of Service',
+            title: l10n.termsOfService,
             onTap: () => context.push('/terms'),
           ),
           _SettingsTile(
             icon: Icons.info,
-            title: 'About',
-            subtitle: 'Version 1.0.0',
+            title: l10n.about,
+            subtitle: l10n.version,
             onTap: () {},
           ),
         ],
@@ -71,27 +78,35 @@ class SettingsScreen extends ConsumerWidget {
 
   void _showLanguageDialog(BuildContext context, WidgetRef ref) {
     final currentLang = ref.read(settingsNotifierProvider).language;
+    final l10n = AppLocalizations.of(context);
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: AppColors.surface,
-        title: const Text('Select Language', style: TextStyle(color: AppColors.textPrimary)),
+        title: Text(
+          l10n.selectLanguage,
+          style: const TextStyle(color: AppColors.textPrimary),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             _LanguageOption(
-              label: 'English',
+              label: l10n.english,
               isSelected: currentLang == AppLanguage.english,
               onTap: () {
-                ref.read(settingsNotifierProvider.notifier).setLanguage(AppLanguage.english);
+                ref
+                    .read(settingsNotifierProvider.notifier)
+                    .setLanguage(AppLanguage.english);
                 Navigator.pop(dialogContext);
               },
             ),
             _LanguageOption(
-              label: 'العربية',
+              label: l10n.arabic,
               isSelected: currentLang == AppLanguage.arabic,
               onTap: () {
-                ref.read(settingsNotifierProvider.notifier).setLanguage(AppLanguage.arabic);
+                ref
+                    .read(settingsNotifierProvider.notifier)
+                    .setLanguage(AppLanguage.arabic);
                 Navigator.pop(dialogContext);
               },
             ),
@@ -153,8 +168,12 @@ class _SettingsTile extends StatelessWidget {
         child: Icon(icon, color: AppColors.primary),
       ),
       title: Text(title, style: const TextStyle(color: AppColors.textPrimary)),
-      subtitle: subtitle != null ? Text(subtitle!, style: const TextStyle(color: AppColors.textSecondary)) : null,
-      trailing: trailing ?? const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+      subtitle: subtitle != null
+          ? Text(subtitle!,
+              style: const TextStyle(color: AppColors.textSecondary))
+          : null,
+      trailing: trailing ??
+          const Icon(Icons.chevron_right, color: AppColors.textSecondary),
       onTap: onTap ?? () {},
     );
   }

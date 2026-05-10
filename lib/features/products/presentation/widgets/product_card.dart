@@ -3,14 +3,15 @@ import 'dart:typed_data';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
+import 'package:olmeg_connect/core/utils/currency_formatter.dart';
 import '../../domain/entities/product_entity.dart';
 
 class ProductCard extends StatelessWidget {
   final ProductEntity product;
   final VoidCallback? onDelete;
   final VoidCallback? onFavorite;
-  const ProductCard({super.key, required this.product, this.onDelete, this.onFavorite});
+  const ProductCard(
+      {super.key, required this.product, this.onDelete, this.onFavorite});
 
   @override
   Widget build(BuildContext context) {
@@ -18,6 +19,8 @@ class ProductCard extends StatelessWidget {
       onTap: () => context.push('/product/${product.id}', extra: product),
       child: Card(
         clipBehavior: Clip.antiAlias,
+        elevation: 2,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: Stack(
           children: [
             Column(
@@ -31,22 +34,43 @@ class ProductCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(product.title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
-                      const SizedBox(height: 4),
                       Text(
-                        NumberFormat.currency(symbol: '\$').format(product.price),
-                        style: const TextStyle(color: Color(0xFF6C63FF), fontWeight: FontWeight.bold, fontSize: 15),
+                        product.title,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                          height: 1.3,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 6),
+                      Text(
+                        CurrencyFormatter.egp(product.price),
+                        style: const TextStyle(
+                          color: Color(0xFF6C63FF),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: _categoryColor(product.category).withValues(alpha: 0.15),
+                          color: _categoryColor(product.category)
+                              .withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
-                          product.category.isNotEmpty ? product.category : 'Uncategorized',
-                          style: TextStyle(color: _categoryColor(product.category), fontSize: 11, fontWeight: FontWeight.w600),
+                          product.category.isNotEmpty
+                              ? product.category
+                              : 'Uncategorized',
+                          style: TextStyle(
+                            color: _categoryColor(product.category),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ],
@@ -54,45 +78,59 @@ class ProductCard extends StatelessWidget {
                 ),
               ],
             ),
-            if (onDelete != null || onFavorite != null)
-              Positioned(
-                top: 4,
-                right: 4,
-                child: Row(
-                  children: [
-                    if (onFavorite != null)
-                      GestureDetector(
-                        onTap: onFavorite,
-                        child: Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.5),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            product.isFavorite ? Icons.favorite : Icons.favorite_border,
-                            color: product.isFavorite ? Colors.red : Colors.white,
-                            size: 18,
-                          ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: Row(
+                children: [
+                  if (onFavorite != null)
+                    GestureDetector(
+                      onTap: onFavorite,
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.6),
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.3),
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          product.isFavorite
+                              ? Icons.favorite
+                              : Icons.favorite_border,
+                          color: product.isFavorite ? Colors.red : Colors.white,
+                          size: 20,
                         ),
                       ),
-                    if (onDelete != null) ...[
-                      const SizedBox(width: 4),
-                      GestureDetector(
-                        onTap: onDelete,
-                        child: Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.5),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.delete, color: Colors.white, size: 18),
+                    ),
+                  if (onDelete != null) ...[
+                    const SizedBox(width: 6),
+                    GestureDetector(
+                      onTap: onDelete,
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.6),
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.3),
+                              blurRadius: 4,
+                            ),
+                          ],
                         ),
+                        child: const Icon(Icons.delete,
+                            color: Colors.white, size: 20),
                       ),
-                    ],
+                    ),
                   ],
-                ),
+                ],
               ),
+            ),
           ],
         ),
       ),
@@ -108,7 +146,8 @@ class ProductCard extends StatelessWidget {
           children: [
             Icon(Icons.image_outlined, size: 40, color: Colors.grey.shade400),
             const SizedBox(height: 4),
-            Text('No image', style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
+            Text('No image',
+                style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
           ],
         ),
       );
@@ -157,7 +196,8 @@ class ProductCard extends StatelessWidget {
         children: [
           Icon(Icons.broken_image, size: 40, color: Colors.grey.shade400),
           const SizedBox(height: 4),
-          Text('Image unavailable', style: TextStyle(color: Colors.grey.shade500, fontSize: 11)),
+          Text('Image unavailable',
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 11)),
         ],
       ),
     );
@@ -165,10 +205,14 @@ class ProductCard extends StatelessWidget {
 
   Color _categoryColor(String cat) {
     switch (cat) {
-      case 'New': return Colors.green;
-      case 'Used': return Colors.orange;
-      case 'Handmade': return Colors.purple;
-      default: return Colors.grey;
+      case 'New':
+        return Colors.green;
+      case 'Used':
+        return Colors.orange;
+      case 'Handmade':
+        return Colors.purple;
+      default:
+        return Colors.grey;
     }
   }
 }

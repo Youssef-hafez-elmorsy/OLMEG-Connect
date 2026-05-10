@@ -6,6 +6,7 @@ import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/register_screen.dart';
 import '../../features/products/domain/entities/product_entity.dart';
 import '../../features/products/presentation/screens/product_detail_screen.dart';
+import '../../features/products/presentation/screens/cart_screen.dart';
 import '../../features/posts/screens/create_post_screen.dart';
 import '../../features/posts/screens/demo_screen.dart';
 import '../../features/shell/presentation/main_shell.dart';
@@ -17,7 +18,13 @@ import '../../features/profile/presentation/screens/favorites_screen.dart';
 import '../../features/profile/presentation/screens/my_products_screen.dart';
 import '../../features/profile/presentation/screens/privacy_policy_screen.dart';
 import '../../features/profile/presentation/screens/terms_of_service_screen.dart';
+import '../../features/profile/presentation/screens/edit_profile_screen.dart';
 import '../../features/home/presentation/screens/search_screen.dart';
+import '../../features/search/presentation/screens/advanced_search_screen.dart';
+import '../../features/notifications/presentation/screens/notifications_screen.dart';
+import '../../features/admin/presentation/screens/admin_dashboard.dart';
+import '../../features/admin/presentation/screens/admin_notification_screen.dart';
+import '../../features/admin/presentation/screens/admin_product_moderation_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -26,14 +33,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final notifierState = ref.read(authNotifierProvider).value;
       final streamState = ref.read(authStateProvider).value;
-      
-      final isLoggedIn = (notifierState != null) || (streamState != null);
-      final isAuthRoute = state.matchedLocation == '/login' || state.matchedLocation == '/register';
 
-      print('[Router] Location: ${state.matchedLocation}, isLoggedIn: $isLoggedIn');
+      final currentUser = notifierState ?? streamState;
+      final isLoggedIn = currentUser != null;
+      final isAdminRoute = state.matchedLocation == '/admin' ||
+          state.matchedLocation.startsWith('/admin/');
+      final isAuthRoute = state.matchedLocation == '/login' ||
+          state.matchedLocation == '/register';
 
       if (!isLoggedIn && !isAuthRoute) return '/login';
       if (isLoggedIn && isAuthRoute) return '/home';
+      if (isAdminRoute && currentUser?.isAdmin != true) return '/home';
       return null;
     },
     refreshListenable: GoRouterRefreshStream(ref),
@@ -50,6 +60,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           final product = state.extra as ProductEntity;
           return ProductDetailScreen(product: product);
         },
+      ),
+      GoRoute(
+        path: '/cart',
+        builder: (_, __) => const CartScreen(),
       ),
       GoRoute(
         path: '/create-post',
@@ -91,8 +105,32 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, __) => const TermsOfServiceScreen(),
       ),
       GoRoute(
+        path: '/edit-profile',
+        builder: (_, __) => const EditProfileScreen(),
+      ),
+      GoRoute(
         path: '/search',
         builder: (_, __) => const SearchScreen(),
+      ),
+      GoRoute(
+        path: '/advanced-search',
+        builder: (_, __) => const AdvancedSearchScreen(),
+      ),
+      GoRoute(
+        path: '/notifications',
+        builder: (_, __) => const NotificationsScreen(),
+      ),
+      GoRoute(
+        path: '/admin',
+        builder: (_, __) => const AdminDashboardScreen(),
+      ),
+      GoRoute(
+        path: '/admin/notify',
+        builder: (_, __) => const AdminNotificationScreen(),
+      ),
+      GoRoute(
+        path: '/admin/moderation',
+        builder: (_, __) => const AdminProductModerationScreen(),
       ),
     ],
   );

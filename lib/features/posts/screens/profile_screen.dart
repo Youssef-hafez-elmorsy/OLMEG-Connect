@@ -6,9 +6,10 @@ import 'package:olmeg_connect/features/posts/services/user_service.dart';
 import 'package:olmeg_connect/features/posts/widgets/avatar_widget.dart';
 import 'package:olmeg_connect/features/posts/widgets/post_card.dart';
 import 'package:olmeg_connect/features/posts/screens/create_post_screen.dart';
+import 'package:olmeg_connect/features/profile/presentation/screens/edit_profile_screen.dart';
 
-class ProfileScreen extends ConsumerWidget {
-  const ProfileScreen({super.key});
+class MyPostsScreen extends ConsumerWidget {
+  const MyPostsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -18,12 +19,16 @@ class ProfileScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Posts'),
+        actions: [
+          IconButton(icon: const Icon(Icons.camera_alt), onPressed: () {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const EditProfileScreen()));
+          }),
+        ],
       ),
       body: FutureBuilder<UserIdentity?>(
         future: UserService().getUser(),
         builder: (context, userSnapshot) {
           final user = userSnapshot.data;
-
           if (!userSnapshot.hasData || user == null) {
             return const Center(child: CircularProgressIndicator());
           }
@@ -71,18 +76,12 @@ class ProfileScreen extends ConsumerWidget {
 
               return CustomScrollView(
                 slivers: [
-                  SliverToBoxAdapter(
-                    child: _buildUserHeader(context, user, posts.length),
-                  ),
+                  SliverToBoxAdapter(child: _buildUserHeader(context, user, posts.length)),
                   SliverList(
                     delegate: SliverChildBuilderDelegate(
                       (context, index) {
                         final post = posts[index];
-                        return PostCard(
-                          key: ValueKey(post.id),
-                          post: post,
-                          onDelete: () {},
-                        );
+                        return PostCard(key: ValueKey(post.id), post: post, onDelete: () {});
                       },
                       childCount: posts.length,
                     ),
@@ -108,11 +107,7 @@ class ProfileScreen extends ConsumerWidget {
       padding: const EdgeInsets.all(16),
       child: Row(
         children: [
-          AvatarWidget(
-            name: user.displayName,
-            avatarColor: user.avatarColor,
-            radius: 40,
-          ),
+          AvatarWidget(imageUrl: user.profileImageUrl, name: user.displayName, avatarColor: user.avatarColor, sizeType: AvatarSizeType.large),
           const SizedBox(width: 16),
           Expanded(
             child: Column(

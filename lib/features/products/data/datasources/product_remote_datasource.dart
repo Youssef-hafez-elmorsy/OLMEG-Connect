@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
@@ -11,7 +10,11 @@ abstract class ProductRemoteDataSource {
   Stream<List<ProductModel>> getProducts({String? categoryId});
   Stream<List<ProductModel>> getUserProducts(String userId);
   Future<ProductModel> getProductById(String id);
-  Future<void> addProduct({required ProductModel product, File? imageFile, Uint8List? imageBytes, String? imageExtension});
+  Future<void> addProduct(
+      {required ProductModel product,
+      File? imageFile,
+      Uint8List? imageBytes,
+      String? imageExtension});
   Future<void> deleteProduct(String id);
 }
 
@@ -19,34 +22,41 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
   final FirebaseFirestore _firestore;
   final FirebaseStorage _storage;
 
-  ProductRemoteDataSourceImpl({required FirebaseFirestore firestore, required FirebaseStorage storage})
-      : _firestore = firestore, _storage = storage;
+  ProductRemoteDataSourceImpl(
+      {required FirebaseFirestore firestore, required FirebaseStorage storage})
+      : _firestore = firestore,
+        _storage = storage;
 
-  CollectionReference get _col => _firestore.collection(AppConstants.productsCollection);
+  CollectionReference get _col =>
+      _firestore.collection(AppConstants.productsCollection);
 
   @override
   Stream<List<ProductModel>> getProducts({String? categoryId}) {
-    debugPrint('[ProductRemoteDataSource] getProducts called with categoryId: $categoryId');
     Query query = _col.orderBy('createdAt', descending: true);
-    
+
     return query.snapshots().map((s) {
-      final allProducts = s.docs.map((d) => ProductModel.fromFirestore(d)).toList();
-      
+      final allProducts = s.docs
+          .where((d) {
+            final data = d.data() as Map<String, dynamic>;
+            final status = data['moderationStatus'] as String?;
+            return status == null || status == 'approved';
+          })
+          .map((d) => ProductModel.fromFirestore(d))
+          .toList();
+
       if (categoryId == null || categoryId.isEmpty) {
-        debugPrint('[ProductRemoteDataSource] No filter, returning ${allProducts.length} products');
         return allProducts;
       }
-      
+
       // Filter by categoryId OR subCategoryId OR category name
       final filtered = allProducts.where((p) {
-        final match = p.categoryId == categoryId || 
-                    p.subCategoryId == categoryId ||
-                    p.category.toLowerCase() == categoryId.toLowerCase() ||
-                    (p.subCategoryName?.toLowerCase() == categoryId.toLowerCase());
+        final match = p.categoryId == categoryId ||
+            p.subCategoryId == categoryId ||
+            p.category.toLowerCase() == categoryId.toLowerCase() ||
+            (p.subCategoryName?.toLowerCase() == categoryId.toLowerCase());
         return match;
       }).toList();
-      
-      debugPrint('[ProductRemoteDataSource] Filtered to ${filtered.length} products for categoryId: $categoryId');
+
       return filtered;
     });
   }
@@ -67,12 +77,15 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
   }
 
   @override
-  Future<void> addProduct({required ProductModel product, File? imageFile, Uint8List? imageBytes, String? imageExtension}) async {
+  Future<void> addProduct(
+      {required ProductModel product,
+      File? imageFile,
+      Uint8List? imageBytes,
+      String? imageExtension}) async {
     try {
-      print('[Product] Uploading image for product: ${product.id}');
-      final imageUrl = await _uploadImage(imageFile, imageBytes, product.id, imageExtension: imageExtension);
-      print('[Product] Image uploaded successfully: $imageUrl');
-      
+      final imageUrl = await _uploadImage(imageFile, imageBytes, product.id,
+          imageExtension: imageExtension);
+
       final updatedProduct = ProductModel(
         id: product.id,
         title: product.title,
@@ -84,21 +97,18 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
         sellerName: product.sellerName,
         createdAt: product.createdAt,
       );
-      
-      print('[Product] Saving product to Firestore');
+
       await _col.doc(product.id).set(updatedProduct.toFirestore());
-      print('[Product] Product saved successfully');
     } on FirebaseException catch (e) {
-      print('[Product] FirebaseException: ${e.code} - ${e.message}');
       if (e.code == 'permission-denied') {
-        throw Exception('Permission denied. Check Firestore and Storage rules.');
+        throw Exception(
+            'Permission denied. Check Firestore and Storage rules.');
       } else if (e.code == 'quota-exceeded') {
         throw Exception('Storage quota exceeded.');
       } else {
         throw Exception('Firebase error: ${e.message}');
       }
     } catch (e) {
-      print('[Product] Unexpected error: $e');
       throw Exception('Failed to add product: $e');
     }
   }
@@ -108,19 +118,22 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
     await _col.doc(id).delete();
   }
 
-  Future<String> _uploadImage(File? file, Uint8List? bytes, String productId, {String? imageExtension}) async {
+  Future<String> _uploadImage(File? file, Uint8List? bytes, String productId,
+      {String? imageExtension}) async {
     try {
       final ext = imageExtension ?? 'jpg';
-      
+
       // For Web: use base64 instead of Firebase Storage
       if (kIsWeb && bytes != null && bytes.isNotEmpty) {
         final base64String = base64Encode(bytes);
         return 'data:image/$ext;base64,$base64String';
       }
-      
+
       // For Mobile/Desktop: use Firebase Storage
-      final ref = _storage.ref().child('${AppConstants.productImagesPath}/$productId.$ext');
-      
+      final ref = _storage
+          .ref()
+          .child('${AppConstants.productImagesPath}/$productId.$ext');
+
       String contentType;
       switch (ext.toLowerCase()) {
         case 'png':
@@ -135,9 +148,9 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
         default:
           contentType = 'image/jpeg';
       }
-      
+
       final metadata = SettableMetadata(contentType: contentType);
-      
+
       UploadTask uploadTask;
       if (file != null) {
         uploadTask = ref.putFile(file);
@@ -146,11 +159,10 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
       } else {
         throw Exception('No image provided');
       }
-      
+
       final snapshot = await uploadTask;
       return await snapshot.ref.getDownloadURL();
     } on FirebaseException catch (e) {
-      print('[Product] Storage error: ${e.code} - ${e.message}');
       throw Exception('Failed to upload image: ${e.message}');
     }
   }

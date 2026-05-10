@@ -67,8 +67,15 @@ class ProductEntity extends Equatable {
   bool get isUsed => category.toLowerCase() == 'used';
   bool get isHandicraft => category.toLowerCase() == 'handicraft';
 
-  List<String> get allImages =>
-      imageUrl.isNotEmpty ? [imageUrl, ...images] : images;
+  List<String> get allImages {
+    final unique = <String>[];
+    for (final image in [imageUrl, ...images]) {
+      if (image.isNotEmpty && !unique.contains(image)) {
+        unique.add(image);
+      }
+    }
+    return unique;
+  }
 
   ProductEntity copyWith({
     String? id,

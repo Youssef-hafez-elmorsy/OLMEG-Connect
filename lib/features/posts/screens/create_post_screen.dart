@@ -1,5 +1,3 @@
-import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -48,22 +46,9 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Create Post'),
-        leading: GestureDetector(
-          onTap: () => Navigator.of(context, rootNavigator: true).pop(),
-          child: Container(
-            width: 44,
-            height: 44,
-            margin: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceContainerHighest,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.close,
-              color: Theme.of(context).colorScheme.onSurface,
-              size: 24,
-            ),
-          ),
+        leading: IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: () => Navigator.of(context).pop(),
         ),
         automaticallyImplyLeading: false,
         actions: [
@@ -154,7 +139,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
           padding: const EdgeInsets.all(12),
           child: Row(
             children: [
-              AvatarWidget(name: user?.displayName, avatarColor: user?.avatarColor ?? '0xFF9E9E9E', radius: 24),
+              AvatarWidget(imageUrl: user?.profileImageUrl, name: user?.displayName, avatarColor: user?.avatarColor ?? '0xFF9E9E9E', sizeType: AvatarSizeType.medium),
               const SizedBox(width: 8),
               Expanded(
                 child: Column(
@@ -234,14 +219,28 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   Widget _buildTitleField(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: TextField(
         controller: _titleController,
+        style: const TextStyle(fontSize: 16),
         decoration: InputDecoration(
-          labelText: _postType == 'made' ? 'Title (e.g., Beautiful Handmade Vase)' : 'What are you looking for?',
-          hintText: _postType == 'made' ? 'Enter product title' : 'Describe what you need',
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-          prefixIcon: Icon(_postType == 'made' ? Icons.sell : Icons.search),
+          labelText: _postType == 'made'
+              ? 'Title (e.g., Beautiful Handmade Vase)'
+              : 'What are you looking for?',
+          hintText: _postType == 'made'
+              ? 'Enter product title'
+              : 'Describe what you need',
+          prefixIcon: Icon(
+            _postType == 'made' ? Icons.sell : Icons.search,
+            color: colorScheme.primary,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 14,
+          ),
         ),
         onChanged: (_) => setState(() {}),
       ),
@@ -250,17 +249,42 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
 
   Widget _buildCategoryField(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final categories = ['New', 'Used', 'Handicraft', 'Jewelry', 'Electronics', 'Clothing', 'Home', 'Sports', 'Books', 'Toys'];
+    final categories = [
+      'New',
+      'Used',
+      'Handicraft',
+      'Jewelry',
+      'Electronics',
+      'Clothing',
+      'Home',
+      'Sports',
+      'Books',
+      'Toys'
+    ];
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: DropdownButtonFormField<String>(
-        value: _categoryController.text.isEmpty ? null : _categoryController.text,
+        initialValue: _categoryController.text.isEmpty ? null : _categoryController.text,
         decoration: InputDecoration(
           labelText: 'Category',
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-          prefixIcon: const Icon(Icons.category),
+          prefixIcon: Icon(
+            Icons.category,
+            color: colorScheme.primary,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 14,
+          ),
         ),
-        items: categories.map((cat) => DropdownMenuItem(value: cat, child: Text(cat))).toList(),
+        items: categories
+            .map((cat) => DropdownMenuItem(
+                  value: cat,
+                  child: Text(cat),
+                ))
+            .toList(),
         onChanged: (value) {
           setState(() {
             _categoryController.text = value ?? '';
@@ -274,22 +298,37 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     final colorScheme = Theme.of(context).colorScheme;
     final text = _descriptionController.text;
     return Padding(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           TextField(
             controller: _descriptionController,
             maxLines: null,
-            minLines: 3,
+            minLines: 4,
+            style: const TextStyle(fontSize: 14),
             decoration: InputDecoration(
               labelText: 'Description',
               hintText: 'Describe your product or what you need...',
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 14,
+              ),
             ),
             onChanged: (_) => setState(() {}),
           ),
-          Text('${text.length}/500', style: TextStyle(color: text.length > 450 ? colorScheme.error : colorScheme.onSurfaceVariant, fontSize: 12)),
+          const SizedBox(height: 8),
+          Text(
+            '${text.length}/500',
+            style: TextStyle(
+              color: text.length > 450 ? colorScheme.error : colorScheme.onSurfaceVariant,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ],
       ),
     );
@@ -298,16 +337,26 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   Widget _buildPriceField(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: TextField(
         controller: _priceController,
         keyboardType: TextInputType.number,
+        style: const TextStyle(fontSize: 16),
         decoration: InputDecoration(
           labelText: 'Price (optional)',
           hintText: 'Enter price',
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-          prefixIcon: const Icon(Icons.attach_money),
+          prefixIcon: Icon(
+            Icons.attach_money,
+            color: colorScheme.primary,
+          ),
           suffixText: 'USD',
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 14,
+          ),
         ),
         onChanged: (_) => setState(() {}),
       ),
@@ -317,16 +366,26 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   Widget _buildBudgetField(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: TextField(
         controller: _priceController,
         keyboardType: TextInputType.number,
+        style: const TextStyle(fontSize: 16),
         decoration: InputDecoration(
           labelText: 'Budget (optional)',
           hintText: 'Enter your budget',
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-          prefixIcon: const Icon(Icons.account_balance_wallet),
+          prefixIcon: Icon(
+            Icons.account_balance_wallet,
+            color: colorScheme.primary,
+          ),
           suffixText: 'USD',
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 14,
+          ),
         ),
         onChanged: (_) => setState(() {}),
       ),
@@ -410,6 +469,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
         id: PostModel.generateId(),
         authorId: user.userId,
         authorName: user.displayName,
+        authorProfileImageUrl: user.profileImageUrl,
         authorAvatarColor: user.avatarColor,
         text: _descriptionController.text.trim(),
         postType: _postType,

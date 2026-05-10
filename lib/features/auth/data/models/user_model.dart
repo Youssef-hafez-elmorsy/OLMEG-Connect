@@ -7,16 +7,22 @@ class UserModel extends UserEntity {
     required super.email,
     required super.name,
     super.photoUrl,
+    super.role,
     required super.createdAt,
   });
 
   factory UserModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+    final isAdminFlag = data['isAdmin'] == true;
+    final role = (data['role'] as String?)?.trim().toLowerCase();
     return UserModel(
       id: doc.id,
       email: data['email'] ?? '',
       name: data['name'] ?? '',
       photoUrl: data['photoUrl'],
+      role: role?.isNotEmpty == true
+          ? role!
+          : (isAdminFlag ? 'admin' : 'user'),
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }
@@ -25,6 +31,8 @@ class UserModel extends UserEntity {
         'email': email,
         'name': name,
         'photoUrl': photoUrl,
+        'role': role,
+        'isAdmin': isAdmin,
         'createdAt': Timestamp.fromDate(createdAt),
       };
 
@@ -33,6 +41,7 @@ class UserModel extends UserEntity {
         email: entity.email,
         name: entity.name,
         photoUrl: entity.photoUrl,
+        role: entity.role,
         createdAt: entity.createdAt,
       );
 }

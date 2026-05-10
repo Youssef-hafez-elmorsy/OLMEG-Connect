@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../theme/app_theme.dart';
+import 'fullscreen_image_gallery.dart';
 
 class ImageGallery extends StatefulWidget {
   final List<String> images;
@@ -47,7 +48,18 @@ class _ImageGalleryState extends State<ImageGallery> {
               setState(() => _currentIndex = index);
             },
             itemBuilder: (context, index) {
-              return _buildImage(widget.images[index]);
+              return GestureDetector(
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => FullscreenImageGallery(
+                      images: widget.images,
+                      initialIndex: index,
+                    ),
+                  ),
+                ),
+                child: _buildImage(widget.images[index]),
+              );
             },
           ),
           // Indicators

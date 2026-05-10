@@ -11,9 +11,16 @@ final chatRemoteDataSourceProvider = Provider<ChatRemoteDataSource>((ref) {
   );
 });
 
-final userChatsProvider = StreamProvider.family<List<ChatModel>, String>((ref, userId) {
+final userChatsProvider =
+    StreamProvider.family<List<ChatModel>, String>((ref, userId) {
   final datasource = ref.watch(chatRemoteDataSourceProvider);
   return datasource.getChats(userId);
+});
+
+final chatByIdProvider =
+    StreamProvider.family<ChatModel?, String>((ref, chatId) {
+  final datasource = ref.watch(chatRemoteDataSourceProvider);
+  return datasource.getChatStream(chatId);
 });
 
 class ChatNotifier extends Notifier<AsyncValue<void>> {
@@ -31,14 +38,15 @@ class ChatNotifier extends Notifier<AsyncValue<void>> {
     state = const AsyncValue.loading();
     try {
       final ds = ref.read(chatRemoteDataSourceProvider);
-      
+
       // Check if chat already exists
-      final existing = await ds.getChatByParticipants(productId, buyerId, sellerId);
+      final existing =
+          await ds.getChatByParticipants(productId, buyerId, sellerId);
       if (existing != null) {
         state = const AsyncValue.data(null);
         return existing.id;
       }
-      
+
       final chat = await ds.createChat(
         productId: productId,
         productTitle: productTitle,
@@ -47,7 +55,7 @@ class ChatNotifier extends Notifier<AsyncValue<void>> {
         sellerId: sellerId,
         sellerName: sellerName,
       );
-      
+
       state = const AsyncValue.data(null);
       return chat.id;
     } catch (e) {
@@ -77,6 +85,7 @@ class ChatNotifier extends Notifier<AsyncValue<void>> {
   }
 }
 
-final chatNotifierProvider = NotifierProvider<ChatNotifier, AsyncValue<void>>(() {
+final chatNotifierProvider =
+    NotifierProvider<ChatNotifier, AsyncValue<void>>(() {
   return ChatNotifier();
 });

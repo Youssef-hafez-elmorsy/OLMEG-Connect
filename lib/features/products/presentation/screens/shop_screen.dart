@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:olmeg_connect/features/products/data/models/product_model.dart';
-import 'package:olmeg_connect/features/products/domain/entities/product_entity.dart';
 import 'package:olmeg_connect/features/products/presentation/widgets/product_card.dart';
 import 'package:olmeg_connect/features/products/presentation/providers/product_provider.dart';
 
@@ -23,7 +21,11 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.search),
-            onPressed: () {},
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Search functionality coming soon')),
+              );
+            },
             tooltip: 'Search',
           ),
         ],

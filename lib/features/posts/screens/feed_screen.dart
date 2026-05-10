@@ -6,6 +6,7 @@ import 'package:olmeg_connect/features/posts/services/user_service.dart';
 import 'package:olmeg_connect/features/posts/widgets/avatar_widget.dart';
 import 'package:olmeg_connect/features/posts/widgets/post_card.dart';
 import 'package:olmeg_connect/features/posts/screens/create_post_screen.dart';
+import 'package:olmeg_connect/features/posts/screens/profile_screen.dart';
 
 class FeedScreen extends ConsumerStatefulWidget {
   const FeedScreen({super.key});
@@ -24,25 +25,33 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        toolbarHeight: 110, // زيادة الطول لتكفي العناصر الجديدة
+        toolbarHeight: 120,
         titleSpacing: 16,
+        elevation: 0,
+        backgroundColor: colorScheme.surface,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // السطر الأول: العنوان والبروفايل
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Olmeg Connect', style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text(
+                  'Olmeg Connect',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 20,
+                  ),
+                ),
                 FutureBuilder<UserIdentity?>(
                   future: UserService().getUser(),
                   builder: (context, snapshot) {
                     final user = snapshot.data;
                     return user != null
                         ? AvatarWidget(
+                            imageUrl: user.profileImageUrl,
                             name: user.displayName,
                             avatarColor: user.avatarColor,
-                            radius: 18,
+                            sizeType: AvatarSizeType.medium,
                           )
                         : const SizedBox.shrink();
                   },
@@ -50,26 +59,35 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
               ],
             ),
             const SizedBox(height: 12),
-            // السطر الثاني: شريط التنقل (Home, Create, Profile)
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _NavButton(icon: Icons.home, label: 'Home', isActive: true, onTap: () {}),
+                _NavButton(
+                  icon: Icons.home,
+                  label: 'Home',
+                  isActive: true,
+                  onTap: () => setState(() {}),
+                ),
                 _NavButton(
                   icon: Icons.add_circle_outline,
                   label: 'Create',
                   isActive: false,
                   onTap: () => _navigateToCreatePost(context),
                 ),
-                _NavButton(icon: Icons.person_outline, label: 'Profile', isActive: false, onTap: () {}),
+                _NavButton(
+                  icon: Icons.person_outline,
+                  label: 'My Posts',
+                  isActive: false,
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const MyPostsScreen())),
+                ),
               ],
             ),
           ],
         ),
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(50),
+          preferredSize: const Size.fromHeight(56),
           child: Padding(
-            padding: const EdgeInsets.only(bottom: 8.0, left: 12, right: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: _buildFilterRow(context),
           ),
         ),
@@ -78,7 +96,9 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
         stream: FirestoreService.getPostsStream(postType: _postTypeFilter),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(
+              child: CircularProgressIndicator(),
+            );
           }
 
           if (snapshot.hasError) {
@@ -86,9 +106,19 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.error_outline, size: 48, color: colorScheme.error),
+                  Icon(
+                    Icons.error_outline,
+                    size: 48,
+                    color: colorScheme.error,
+                  ),
                   const SizedBox(height: 16),
-                  Text('Error: ${snapshot.error}'),
+                  Text(
+                    'Error loading posts',
+                    style: TextStyle(
+                      color: colorScheme.onSurfaceVariant,
+                      fontSize: 16,
+                    ),
+                  ),
                   const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: () => setState(() {}),
@@ -105,16 +135,36 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
             onRefresh: () async => setState(() {}),
             child: CustomScrollView(
               slivers: [
-                SliverToBoxAdapter(child: _buildCreatePostShortcut(context)),
+                SliverToBoxAdapter(
+                  child: _buildCreatePostShortcut(context),
+                ),
                 if (posts.isEmpty)
                   SliverFillRemaining(
                     child: Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.article_outlined, size: 64, color: colorScheme.onSurfaceVariant),
+                          Icon(
+                            Icons.article_outlined,
+                            size: 64,
+                            color: colorScheme.onSurfaceVariant,
+                          ),
                           const SizedBox(height: 16),
-                          Text('No posts yet', style: TextStyle(color: colorScheme.onSurfaceVariant)),
+                          Text(
+                            'No posts yet',
+                            style: TextStyle(
+                              color: colorScheme.onSurfaceVariant,
+                              fontSize: 16,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Be the first to share something!',
+                            style: TextStyle(
+                              color: colorScheme.onSurfaceVariant,
+                              fontSize: 14,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -185,9 +235,10 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                 builder: (context, snapshot) {
                   final user = snapshot.data;
                   return AvatarWidget(
+                    imageUrl: user?.profileImageUrl,
                     name: user?.displayName ?? "U",
                     avatarColor: user?.avatarColor ?? "0xFF888888",
-                    radius: 20,
+                    sizeType: AvatarSizeType.medium,
                   );
                 },
               ),
@@ -199,10 +250,10 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     decoration: BoxDecoration(
-                      color: colorScheme.surfaceVariant.withOpacity(0.3),
+                      color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(25),
                     ),
-                    child: Text("What's on your mind?", 
+                    child: Text("What's on your mind?",
                       style: TextStyle(color: colorScheme.onSurfaceVariant)),
                   ),
                 ),
@@ -245,7 +296,7 @@ class _NavButton extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         decoration: BoxDecoration(
-          color: isActive ? color.withOpacity(0.1) : Colors.transparent,
+          color: isActive ? color.withValues(alpha: 0.1) : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Column(
@@ -290,8 +341,8 @@ class _AnimatedFilterChip extends StatelessWidget {
               color: isSelected ? colorScheme.primary : colorScheme.outline,
               width: 1,
             ),
-            boxShadow: isSelected 
-              ? [BoxShadow(color: colorScheme.primary.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 2))]
+            boxShadow: isSelected
+              ? [BoxShadow(color: colorScheme.primary.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 2))]
               : [],
           ),
           child: AnimatedDefaultTextStyle(

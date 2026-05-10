@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../utils/currency_formatter.dart';
 
 class PriceBadge extends StatelessWidget {
   final double price;
@@ -11,7 +12,7 @@ class PriceBadge extends StatelessWidget {
     super.key,
     required this.price,
     this.originalPrice,
-    this.currency = '\$',
+    this.currency = 'EGP',
     this.showDiscount = true,
   });
 
@@ -27,7 +28,7 @@ class PriceBadge extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         Text(
-          '$currency${price.toStringAsFixed(0)}',
+          CurrencyFormatter.egp(price),
           style: const TextStyle(
             fontSize: 28,
             fontWeight: FontWeight.bold,
@@ -37,7 +38,7 @@ class PriceBadge extends StatelessWidget {
         if (hasDiscount) ...[
           const SizedBox(width: AppSpacing.sm),
           Text(
-            '$currency${originalPrice!.toStringAsFixed(0)}',
+            CurrencyFormatter.egp(originalPrice!),
             style: const TextStyle(
               fontSize: 16,
               color: AppColors.textSecondary,
@@ -79,7 +80,7 @@ class PriceTag extends StatelessWidget {
     super.key,
     required this.price,
     this.originalPrice,
-    this.currency = '\$',
+    this.currency = 'EGP',
     this.large = false,
   });
 
@@ -97,19 +98,11 @@ class PriceTag extends StatelessWidget {
           textBaseline: TextBaseline.alphabetic,
           children: [
             Text(
-              price.toStringAsFixed(0),
+              CurrencyFormatter.egp(price),
               style: TextStyle(
                 fontSize: large ? 28 : 24,
                 fontWeight: FontWeight.bold,
                 color: AppColors.primary,
-              ),
-            ),
-            const SizedBox(width: 4),
-            Text(
-              currency,
-              style: TextStyle(
-                fontSize: large ? 16 : 14,
-                color: AppColors.textSecondary,
               ),
             ),
           ],
@@ -119,7 +112,7 @@ class PriceTag extends StatelessWidget {
           Row(
             children: [
               Text(
-                originalPrice!.toStringAsFixed(0),
+                CurrencyFormatter.egp(originalPrice!),
                 style: const TextStyle(
                   fontSize: 14,
                   color: AppColors.textSecondary,

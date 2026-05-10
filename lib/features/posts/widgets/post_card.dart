@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:timeago/timeago.dart' as timeago;
+import 'package:olmeg_connect/core/utils/currency_formatter.dart';
+import 'package:olmeg_connect/core/widgets/fullscreen_image_gallery.dart';
 import 'package:olmeg_connect/features/posts/models/post_model.dart';
 import 'package:olmeg_connect/features/posts/services/firestore_service.dart';
 import 'package:olmeg_connect/features/posts/services/user_service.dart';
@@ -42,10 +45,13 @@ class _PostCardState extends ConsumerState<PostCard> {
 
     final postColorScheme = Theme.of(context).colorScheme;
     final postTextTheme = Theme.of(context).textTheme;
-    final userActiveReaction = user != null ? widget.post.getActiveReaction(user.userId) : '';
+    final userActiveReaction =
+        user != null ? widget.post.getActiveReaction(user.userId) : '';
 
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -53,21 +59,32 @@ class _PostCardState extends ConsumerState<PostCard> {
           _buildContent(context, postTextTheme),
           if (widget.post.imageURLs.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.only(top: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               child: ImageGrid(
                 imageURLs: widget.post.imageURLs,
-                onImageTap: (index) {},
+                onImageTap: (index) => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => FullscreenImageGallery(
+                      images: widget.post.imageURLs,
+                      initialIndex: index,
+                    ),
+                  ),
+                ),
               ),
             ),
           Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: ReactionSummary(
               topReactions: widget.post.getTopReactions(),
               totalCount: widget.post.getTotalReactions(),
               commentCount: _commentsCount,
             ),
           ),
-          Divider(height: 1, color: postColorScheme.outlineVariant),
+          Divider(
+            height: 1,
+            color: postColorScheme.outlineVariant,
+          ),
           _buildActionButtons(context, user?.userId, userActiveReaction),
           if (_showComments) _buildCommentsSection(context),
         ],
@@ -80,90 +97,124 @@ class _PostCardState extends ConsumerState<PostCard> {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Padding(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               AvatarWidget(
+                imageUrl: post.authorProfileImageUrl,
                 name: post.authorName,
                 avatarColor: post.authorAvatarColor,
-                radius: 22,
+                sizeType: AvatarSizeType.medium,
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
-                        Text(post.authorName, style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold)),
+                        Text(
+                          post.authorName,
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyLarge
+                              ?.copyWith(fontWeight: FontWeight.bold),
+                        ),
                         if (post.feeling != null) ...[
-                          const SizedBox(width: 4),
-                          Text('is feeling ${post.feeling}', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant)),
+                          const SizedBox(width: 6),
+                          Text(
+                            'is feeling ${post.feeling}',
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: colorScheme.onSurfaceVariant,
+                                    ),
+                          ),
                         ],
                       ],
                     ),
+                    const SizedBox(height: 4),
                     Row(
                       children: [
-                        Text(timeago.format(post.createdAt), style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant)),
-                        const SizedBox(width: 4),
-                        Icon(AudienceOptions.getIcon(post.audience), size: 14, color: colorScheme.onSurfaceVariant),
+                        Text(
+                          timeago.format(post.createdAt),
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
+                        ),
+                        const SizedBox(width: 6),
+                        Icon(
+                          AudienceOptions.getIcon(post.audience),
+                          size: 14,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
                       ],
                     ),
                   ],
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: post.isMadePost ? Colors.green.shade100 : Colors.orange.shade100,
+                  color: post.isMadePost
+                      ? Colors.green.shade100
+                      : Colors.orange.shade100,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   post.displayType,
                   style: TextStyle(
-                    color: post.isMadePost ? Colors.green.shade800 : Colors.orange.shade800,
+                    color: post.isMadePost
+                        ? Colors.green.shade800
+                        : Colors.orange.shade800,
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
-              if (post.displayPrice != null) ...[
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    '\$${post.displayPrice}',
-                    style: TextStyle(
-                      color: colorScheme.onPrimaryContainer,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
             ],
           ),
+          if (post.displayPrice != null) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                CurrencyFormatter.egp(
+                  double.tryParse(post.displayPrice ?? '0') ?? 0,
+                ),
+                style: TextStyle(
+                  color: colorScheme.onPrimaryContainer,
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
           if (post.title != null && post.title!.isNotEmpty) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             Text(
               post.title!,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              style: Theme.of(context)
+                  .textTheme
+                  .titleMedium
+                  ?.copyWith(fontWeight: FontWeight.bold),
             ),
           ],
           if (post.category != null && post.category!.isNotEmpty) ...[
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
                 color: colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(4),
+                borderRadius: BorderRadius.circular(6),
               ),
               child: Text(
                 post.category!,
@@ -171,7 +222,7 @@ class _PostCardState extends ConsumerState<PostCard> {
               ),
             ),
           ],
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
@@ -179,11 +230,50 @@ class _PostCardState extends ConsumerState<PostCard> {
                 onSelected: (value) => _handleMenuAction(value, context),
                 itemBuilder: (context) => [
                   if (user?.userId == post.authorId) ...[
-                    const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete, color: Colors.red), SizedBox(width: 8), Text('Delete Post', style: TextStyle(color: Colors.red))])),
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          Icon(Icons.delete, color: Colors.red),
+                          SizedBox(width: 8),
+                          Text(
+                            'Delete Post',
+                            style: TextStyle(color: Colors.red),
+                          ),
+                        ],
+                      ),
+                    ),
                   ] else ...[
-                    const PopupMenuItem(value: 'save', child: Row(children: [Icon(Icons.bookmark_border), SizedBox(width: 8), Text('Save Post')])),
-                    const PopupMenuItem(value: 'copy', child: Row(children: [Icon(Icons.link), SizedBox(width: 8), Text('Copy Link')])),
-                    const PopupMenuItem(value: 'report', child: Row(children: [Icon(Icons.flag, color: Colors.orange), SizedBox(width: 8), Text('Report Post')])),
+                    const PopupMenuItem(
+                      value: 'save',
+                      child: Row(
+                        children: [
+                          Icon(Icons.bookmark_border),
+                          SizedBox(width: 8),
+                          Text('Save Post'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'copy',
+                      child: Row(
+                        children: [
+                          Icon(Icons.link),
+                          SizedBox(width: 8),
+                          Text('Copy Link'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'report',
+                      child: Row(
+                        children: [
+                          Icon(Icons.flag, color: Colors.orange),
+                          SizedBox(width: 8),
+                          Text('Report Post'),
+                        ],
+                      ),
+                    ),
                   ],
                 ],
               ),
@@ -191,7 +281,8 @@ class _PostCardState extends ConsumerState<PostCard> {
                 onTap: () => _showShareSheet(context),
                 borderRadius: BorderRadius.circular(20),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                   decoration: BoxDecoration(
                     color: colorScheme.primary,
                     borderRadius: BorderRadius.circular(20),
@@ -199,13 +290,17 @@ class _PostCardState extends ConsumerState<PostCard> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.share, size: 20, color: colorScheme.onPrimary),
-                      const SizedBox(width: 6),
+                      Icon(
+                        Icons.share,
+                        size: 18,
+                        color: colorScheme.onPrimary,
+                      ),
+                      const SizedBox(width: 5),
                       Text(
                         'Share',
                         style: TextStyle(
                           color: colorScheme.onPrimary,
-                          fontSize: 14,
+                          fontSize: 13,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -240,7 +335,10 @@ class _PostCardState extends ConsumerState<PostCard> {
               child: Center(
                 child: Text(
                   post.text,
-                  style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold),
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -248,40 +346,51 @@ class _PostCardState extends ConsumerState<PostCard> {
           : Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(post.text, style: textTheme.bodyLarge, maxLines: _liked ? null : 3, overflow: _liked ? null : TextOverflow.ellipsis),
+                Text(post.text,
+                    style: textTheme.bodyLarge,
+                    maxLines: _liked ? null : 3,
+                    overflow: _liked ? null : TextOverflow.ellipsis),
                 if (post.text.length > 100 && !_liked)
-                  TextButton(onPressed: () => setState(() => _liked = true), child: const Text('See more')),
+                  TextButton(
+                      onPressed: () => setState(() => _liked = true),
+                      child: const Text('See more')),
               ],
             ),
     );
   }
 
-  Widget _buildActionButtons(BuildContext context, String? currentUserId, String userActiveReaction) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        _ActionButton(
-          icon: Icons.thumb_up,
-          label: userActiveReaction.isNotEmpty ? 'Liked' : 'Like',
-          isActive: userActiveReaction.isNotEmpty,
-          onTap: () => _toggleReaction('like'),
-        ),
-        _ActionButton(
-          icon: Icons.chat_bubble_outline,
-          label: 'Comment',
-          isActive: _showComments,
-          onTap: () => setState(() {
-            _showComments = !_showComments;
-            if (_showComments && widget.onCommentTap != null) widget.onCommentTap!();
-          }),
-        ),
-        _ActionButton(
-          icon: Icons.share,
-          label: 'Share',
-          isActive: false,
-          onTap: () => _showShareSheet(context),
-        ),
-      ],
+  Widget _buildActionButtons(
+      BuildContext context, String? currentUserId, String userActiveReaction) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _ActionButton(
+            icon: Icons.thumb_up,
+            label: userActiveReaction.isNotEmpty ? 'Liked' : 'Like',
+            isActive: userActiveReaction.isNotEmpty,
+            onTap: () => _toggleReaction('like'),
+          ),
+          _ActionButton(
+            icon: Icons.chat_bubble_outline,
+            label: 'Comment',
+            isActive: _showComments,
+            onTap: () => setState(() {
+              _showComments = !_showComments;
+              if (_showComments && widget.onCommentTap != null) {
+                widget.onCommentTap!();
+              }
+            }),
+          ),
+          _ActionButton(
+            icon: Icons.share,
+            label: 'Share',
+            isActive: false,
+            onTap: () => _showShareSheet(context),
+          ),
+        ],
+      ),
     );
   }
 
@@ -301,8 +410,13 @@ class _PostCardState extends ConsumerState<PostCard> {
             title: const Text('Delete this post?'),
             content: const Text('This cannot be undone.'),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-              TextButton(onPressed: () => Navigator.pop(context, true), style: TextButton.styleFrom(foregroundColor: Colors.red), child: const Text('Delete')),
+              TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancel')),
+              TextButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  style: TextButton.styleFrom(foregroundColor: Colors.red),
+                  child: const Text('Delete')),
             ],
           ),
         );
@@ -310,21 +424,26 @@ class _PostCardState extends ConsumerState<PostCard> {
           try {
             await FirestoreService.deletePost(widget.post.id);
             if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Post deleted successfully')));
+              ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Post deleted successfully')));
               widget.onDelete?.call();
             }
           } catch (e) {
             if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: colorScheme.error));
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text('Error: $e'),
+                  backgroundColor: colorScheme.error));
             }
           }
         }
         break;
       case 'copy':
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Link copied!')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Link copied!')));
         break;
       case 'report':
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Post reported')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Post reported')));
         break;
     }
   }
@@ -335,10 +454,14 @@ class _PostCardState extends ConsumerState<PostCard> {
     if (user == null) return;
 
     try {
-      await FirestoreService.toggleReaction(postId: widget.post.id, userId: user.userId, reactionType: reactionType);
+      await FirestoreService.toggleReaction(
+          postId: widget.post.id,
+          userId: user.userId,
+          reactionType: reactionType);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     }
   }
@@ -349,8 +472,27 @@ class _PostCardState extends ConsumerState<PostCard> {
       builder: (context) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          ListTile(leading: const Icon(Icons.share), title: const Text('Share Now'), onTap: () { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Shared!'))); }),
-          ListTile(leading: const Icon(Icons.link), title: const Text('Copy Link'), onTap: () { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Link copied!'))); }),
+          ListTile(
+              leading: const Icon(Icons.share),
+              title: const Text('Share Now'),
+              onTap: () {
+                final link =
+                    'https://olmeg-connect.web.app/posts/${widget.post.id}';
+                Clipboard.setData(ClipboardData(text: link));
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Link copied to clipboard!')));
+              }),
+          ListTile(
+              leading: const Icon(Icons.link),
+              title: const Text('Copy Link'),
+              onTap: () {
+                final link = 'https://olmeg-connect.web.app/#/feed';
+                Clipboard.setData(ClipboardData(text: link));
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Link copied!')));
+              }),
         ],
       ),
     );
@@ -363,7 +505,12 @@ class _ActionButton extends StatelessWidget {
   final bool isActive;
   final VoidCallback onTap;
 
-  const _ActionButton({required this.icon, required this.label, required this.isActive, required this.onTap});
+  const _ActionButton({
+    required this.icon,
+    required this.label,
+    required this.isActive,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -372,18 +519,25 @@ class _ActionButton extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 20, color: isActive ? colorScheme.primary : colorScheme.onSurfaceVariant),
-            const SizedBox(width: 8),
+            Icon(
+              icon,
+              size: 20,
+              color:
+                  isActive ? colorScheme.primary : colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: 6),
             Text(
               label,
               style: TextStyle(
-                color: isActive ? colorScheme.primary : colorScheme.onSurfaceVariant,
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
+                color: isActive
+                    ? colorScheme.primary
+                    : colorScheme.onSurfaceVariant,
+                fontSize: 13,
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
               ),
             ),
           ],
@@ -411,7 +565,10 @@ class _CommentSectionState extends State<_CommentSection> {
   final _commentController = TextEditingController();
 
   @override
-  void dispose() { _commentController.dispose(); super.dispose(); }
+  void dispose() {
+    _commentController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -428,7 +585,11 @@ class _CommentSectionState extends State<_CommentSection> {
                 future: UserService().getUser(),
                 builder: (context, snapshot) {
                   final user = snapshot.data;
-                  return AvatarWidget(name: user?.displayName, avatarColor: user?.avatarColor ?? '0xFF9E9E9E', radius: 16);
+                  return AvatarWidget(
+                      imageUrl: user?.profileImageUrl,
+                      name: user?.displayName,
+                      avatarColor: user?.avatarColor ?? '0xFF9E9E9E',
+                      sizeType: AvatarSizeType.small);
                 },
               ),
               const SizedBox(width: 8),
@@ -437,27 +598,47 @@ class _CommentSectionState extends State<_CommentSection> {
                   controller: _commentController,
                   decoration: InputDecoration(
                     hintText: 'Write a comment...',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(20)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20)),
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   ),
                 ),
               ),
-              IconButton(icon: Icon(Icons.send, color: theme.colorScheme.primary), onPressed: _addComment),
+              IconButton(
+                  icon: Icon(Icons.send, color: theme.colorScheme.primary),
+                  onPressed: _addComment),
             ],
           ),
         ),
         StreamBuilder<List<CommentModel>>(
           stream: commentsStream,
           builder: (context, snapshot) {
-            if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+            if (!snapshot.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
             final comments = snapshot.data ?? [];
-            if (comments.isEmpty) return const Padding(padding: EdgeInsets.all(16), child: Text('No comments yet'));
+            if (comments.isEmpty) {
+              return const Padding(
+                  padding: EdgeInsets.all(16), child: Text('No comments yet'));
+            }
             final displayComments = comments.take(3).toList();
             final remaining = comments.length - 3;
             return Column(
               children: [
-                ...displayComments.map((comment) => _buildCommentTile(context, comment)),
-                if (remaining > 0) TextButton(onPressed: () {}, child: Text('View $remaining more comments')),
+                ...displayComments
+                    .map((comment) => _buildCommentTile(context, comment)),
+                if (remaining > 0)
+                  TextButton(
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                            content:
+                                Text('Loading $remaining more comments...')),
+                      );
+                    },
+                    child: Text('View $remaining more comments'),
+                  ),
               ],
             );
           },
@@ -473,16 +654,24 @@ class _CommentSectionState extends State<_CommentSection> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          AvatarWidget(name: comment.authorName, avatarColor: comment.authorAvatarColor, radius: 14),
+          AvatarWidget(
+              imageUrl: comment.authorProfileImageUrl,
+              name: comment.authorName,
+              avatarColor: comment.authorAvatarColor,
+              sizeType: AvatarSizeType.small),
           const SizedBox(width: 8),
           Expanded(
             child: Container(
               padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(color: theme.colorScheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(12)),
+              decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(12)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(comment.authorName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                  Text(comment.authorName,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 12)),
                   Text(comment.text),
                 ],
               ),
@@ -496,17 +685,37 @@ class _CommentSectionState extends State<_CommentSection> {
   Future<void> _addComment() async {
     if (_commentController.text.trim().isEmpty) return;
     final user = await UserService().getUser();
-    if (user == null) return;
+    if (!mounted) return;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please sign in to comment')),
+      );
+      return;
+    }
     final comment = CommentModel(
       id: CommentModel.generateId(),
       postId: widget.postId,
       authorId: user.userId,
       authorName: user.displayName,
+      authorProfileImageUrl: user.profileImageUrl,
       authorAvatarColor: user.avatarColor,
       text: _commentController.text.trim(),
       createdAt: DateTime.now(),
     );
-    await FirestoreService.addComment(comment);
-    _commentController.clear();
+    try {
+      await FirestoreService.addComment(comment);
+      _commentController.clear();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Comment added!')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
   }
 }

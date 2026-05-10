@@ -10,6 +10,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:olmeg_connect/core/theme/app_theme.dart';
 import 'package:olmeg_connect/core/widgets/quantity_selector.dart';
 import 'package:olmeg_connect/features/auth/presentation/providers/auth_provider.dart';
+import 'package:olmeg_connect/features/products/data/services/product_moderation_service.dart';
 import 'package:olmeg_connect/features/products/domain/entities/category_entity.dart';
 import 'package:olmeg_connect/features/products/presentation/providers/category_provider.dart';
 
@@ -26,7 +27,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
   final _descCtrl = TextEditingController();
   final _priceCtrl = TextEditingController();
   int _quantity = 1;
-  
+
   File? _imageFile;
   Uint8List? _imageBytes;
   String? _imageExtension;
@@ -34,19 +35,21 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
   List<Uint8List> _imageBytesList = [];
   List<File> _imageFilesList = [];
 
-  bool get _hasImage => _imageFile != null || _imageBytes != null || _imageBytesList.isNotEmpty || _imageFilesList.isNotEmpty;
+  bool get _hasImage =>
+      _imageFile != null ||
+      _imageBytes != null ||
+      _imageBytesList.isNotEmpty ||
+      _imageFilesList.isNotEmpty;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      print('[AddProduct] initState - initializing categories');
       ref.read(categoryNotifierProvider.notifier).initializeCategories();
     });
   }
 
   Future<void> _forceInitialize() async {
-    print('[AddProduct] Force initializing categories...');
     await ref.read(categoryNotifierProvider.notifier).initializeCategories();
     ref.invalidate(categoriesStreamProvider);
     if (mounted) {
@@ -65,15 +68,12 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
   }
 
   void _onCategoryChanged(CategoryEntity? category) {
-    print('[AddProduct] Category changed to: ${category?.name} (${category?.id})');
-    ref.read(selectedCategoryProvider.notifier).state = category;
-    ref.read(selectedSubcategoryProvider.notifier).state = null;
-    print('[AddProduct] Subcategory reset to null');
+    ref.read(selectedCategoryProvider.notifier).select(category);
+    ref.read(selectedSubcategoryProvider.notifier).select(null);
   }
 
   void _onSubcategoryChanged(SubcategoryEntity? subcategory) {
-    print('[AddProduct] Subcategory changed to: ${subcategory?.name} (${subcategory?.id})');
-    ref.read(selectedSubcategoryProvider.notifier).state = subcategory;
+    ref.read(selectedSubcategoryProvider.notifier).select(subcategory);
   }
 
   Future<void> _pickImage() async {
@@ -118,7 +118,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
   Future<String?> _uploadImages() async {
     try {
       final urls = <String>[];
-      
+
       if (kIsWeb && _imageBytesList.isNotEmpty) {
         for (int i = 0; i < _imageBytesList.length; i++) {
           final base64String = base64Encode(_imageBytesList[i]);
@@ -139,39 +139,39 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
         return 'data:image/$_imageExtension;base64,$base64String';
       } else if (_imageFile != null) {
         final ref = FirebaseStorage.instance.ref();
-        final fileName = '${DateTime.now().millisecondsSinceEpoch}.$_imageExtension';
+        final fileName =
+            '${DateTime.now().millisecondsSinceEpoch}.$_imageExtension';
         final imageRef = ref.child('products/$fileName');
         final task = imageRef.putFile(_imageFile!);
         return await task.then((s) => s.ref.getDownloadURL());
       }
-      
+
       return urls.isNotEmpty ? urls.join('|||') : null;
     } catch (e) {
-      print('Error uploading images: $e');
       return null;
     }
   }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    
+
     final selectedCategory = ref.read(selectedCategoryProvider);
     final selectedSubcategory = ref.read(selectedSubcategoryProvider);
-    
+
     if (selectedCategory == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select a category')),
       );
       return;
     }
-    
+
     if (selectedSubcategory == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select a subcategory')),
       );
       return;
     }
-    
+
     if (!_hasImage) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select a product image')),
@@ -203,12 +203,15 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
       }
 
       final productData = {
+        'titleLower': _titleCtrl.text.trim().toLowerCase(),
         'title': _titleCtrl.text.trim(),
         'description': _descCtrl.text.trim(),
         'price': double.parse(_priceCtrl.text.trim()),
         'stock': _quantity,
+        'category': selectedCategory.name,
         'categoryId': selectedCategory.id,
         'categoryName': selectedCategory.name,
+        'subcategory': selectedSubcategory.name,
         'subCategoryId': selectedSubcategory.id,
         'subCategoryName': selectedSubcategory.name,
         'imageUrl': imagesList.isNotEmpty ? imagesList.first : '',
@@ -220,13 +223,58 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
         'createdAt': FieldValue.serverTimestamp(),
       };
 
-      await FirebaseFirestore.instance.collection('products').add(productData);
+      final moderation = ProductModerationService().review(
+        title: _titleCtrl.text.trim(),
+        description: _descCtrl.text.trim(),
+        price: double.parse(_priceCtrl.text.trim()),
+      );
+
+      final productRef =
+          FirebaseFirestore.instance.collection('products').doc();
+      final reviewedProductData = {
+        ...productData,
+        'id': productRef.id,
+        'moderationStatus': moderation.approved ? 'approved' : 'pending_admin',
+        'moderationDecision':
+            moderation.approved ? 'accepted' : 'needs_admin_review',
+        'moderationReason': moderation.reasons.join('\n'),
+        'moderationConfidence': moderation.confidence,
+        'moderatedAt': FieldValue.serverTimestamp(),
+      };
+
+      if (moderation.approved) {
+        await productRef.set(reviewedProductData);
+        await _createUserNotification(
+          userId: user.id,
+          title: 'Product approved',
+          message: '${_titleCtrl.text.trim()} is now published.',
+          relatedId: productRef.id,
+        );
+      } else {
+        await FirebaseFirestore.instance
+            .collection('product_submissions')
+            .doc(productRef.id)
+            .set(reviewedProductData);
+        await _createUserNotification(
+          userId: user.id,
+          title: 'Product sent to admin review',
+          message:
+              '${_titleCtrl.text.trim()} needs admin review before publication.',
+          relatedId: productRef.id,
+        );
+      }
 
       setState(() => _isLoading = false);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Product listed successfully!')),
+          SnackBar(
+            content: Text(
+              moderation.approved
+                  ? 'Product approved and listed successfully!'
+                  : 'Product sent to admin review before publication.',
+            ),
+          ),
         );
         context.pop();
       }
@@ -240,11 +288,28 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
     }
   }
 
+  Future<void> _createUserNotification({
+    required String userId,
+    required String title,
+    required String message,
+    required String relatedId,
+  }) async {
+    await FirebaseFirestore.instance.collection('notifications').add({
+      'userId': userId,
+      'title': title,
+      'message': message,
+      'body': message,
+      'type': 'product_moderation',
+      'relatedId': relatedId,
+      'read': false,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isDark ? AppColors.background : const Color(0xFFF5F5F7);
-    final surfaceColor = isDark ? AppColors.surface : Colors.white;
     final cardColor = isDark ? AppColors.card : const Color(0xFFFFFFFF);
     final textColor = isDark ? AppColors.textPrimary : const Color(0xFF1E293B);
     final secColor = isDark ? AppColors.textSecondary : const Color(0xFF64748B);
@@ -253,8 +318,8 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
     final categoriesAsync = ref.watch(categoriesStreamProvider);
     final selectedCategory = ref.watch(selectedCategoryProvider);
     final selectedSubcategory = ref.watch(selectedSubcategoryProvider);
-    
-    final subcategoriesAsync = selectedCategory != null 
+
+    final subcategoriesAsync = selectedCategory != null
         ? ref.watch(subcategoriesStreamProvider(selectedCategory.id))
         : const AsyncValue<List<SubcategoryEntity>>.data([]);
 
@@ -293,7 +358,8 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                               kIsWeb && _imageBytesList.isNotEmpty
                                   ? GridView.builder(
                                       padding: const EdgeInsets.all(4),
-                                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                      gridDelegate:
+                                          const SliverGridDelegateWithFixedCrossAxisCount(
                                         crossAxisCount: 3,
                                         crossAxisSpacing: 4,
                                         mainAxisSpacing: 4,
@@ -303,21 +369,29 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                                         return Stack(
                                           children: [
                                             ClipRRect(
-                                              borderRadius: BorderRadius.circular(8),
-                                              child: Image.memory(_imageBytesList[index], fit: BoxFit.cover),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              child: Image.memory(
+                                                  _imageBytesList[index],
+                                                  fit: BoxFit.cover),
                                             ),
                                             Positioned(
                                               top: 4,
                                               right: 4,
                                               child: GestureDetector(
-                                                onTap: () => _removeImage(index),
+                                                onTap: () =>
+                                                    _removeImage(index),
                                                 child: Container(
-                                                  padding: const EdgeInsets.all(4),
-                                                  decoration: const BoxDecoration(
+                                                  padding:
+                                                      const EdgeInsets.all(4),
+                                                  decoration:
+                                                      const BoxDecoration(
                                                     color: Colors.red,
                                                     shape: BoxShape.circle,
                                                   ),
-                                                  child: const Icon(Icons.close, color: Colors.white, size: 16),
+                                                  child: const Icon(Icons.close,
+                                                      color: Colors.white,
+                                                      size: 16),
                                                 ),
                                               ),
                                             ),
@@ -328,7 +402,8 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                                   : _imageFilesList.isNotEmpty
                                       ? GridView.builder(
                                           padding: const EdgeInsets.all(4),
-                                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                          gridDelegate:
+                                              const SliverGridDelegateWithFixedCrossAxisCount(
                                             crossAxisCount: 3,
                                             crossAxisSpacing: 4,
                                             mainAxisSpacing: 4,
@@ -338,21 +413,31 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                                             return Stack(
                                               children: [
                                                 ClipRRect(
-                                                  borderRadius: BorderRadius.circular(8),
-                                                  child: Image.file(_imageFilesList[index], fit: BoxFit.cover),
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                  child: Image.file(
+                                                      _imageFilesList[index],
+                                                      fit: BoxFit.cover),
                                                 ),
                                                 Positioned(
                                                   top: 4,
                                                   right: 4,
                                                   child: GestureDetector(
-                                                    onTap: () => _removeImage(index),
+                                                    onTap: () =>
+                                                        _removeImage(index),
                                                     child: Container(
-                                                      padding: const EdgeInsets.all(4),
-                                                      decoration: const BoxDecoration(
+                                                      padding:
+                                                          const EdgeInsets.all(
+                                                              4),
+                                                      decoration:
+                                                          const BoxDecoration(
                                                         color: Colors.red,
                                                         shape: BoxShape.circle,
                                                       ),
-                                                      child: const Icon(Icons.close, color: Colors.white, size: 16),
+                                                      child: const Icon(
+                                                          Icons.close,
+                                                          color: Colors.white,
+                                                          size: 16),
                                                     ),
                                                   ),
                                                 ),
@@ -361,10 +446,13 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                                           },
                                         )
                                       : kIsWeb && _imageBytes != null
-                                          ? Image.memory(_imageBytes!, fit: BoxFit.cover)
+                                          ? Image.memory(_imageBytes!,
+                                              fit: BoxFit.cover)
                                           : _imageFile != null
-                                              ? Image.file(_imageFile!, fit: BoxFit.cover)
-                                              : const Icon(Icons.image, size: 48),
+                                              ? Image.file(_imageFile!,
+                                                  fit: BoxFit.cover)
+                                              : const Icon(Icons.image,
+                                                  size: 48),
                               Positioned(
                                 bottom: 8,
                                 right: 8,
@@ -374,7 +462,8 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                                     color: bgColor.withValues(alpha: 0.7),
                                     shape: BoxShape.circle,
                                   ),
-                                  child: Icon(Icons.add, color: textColor, size: 20),
+                                  child: Icon(Icons.add,
+                                      color: textColor, size: 20),
                                 ),
                               ),
                             ],
@@ -383,21 +472,27 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                       : Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.add_photo_alternate_outlined, size: 48, color: secColor),
+                            Icon(Icons.add_photo_alternate_outlined,
+                                size: 48, color: secColor),
                             const SizedBox(height: 8),
-                            Text('Tap to add images', style: TextStyle(color: secColor)),
-                            Text('(Select multiple)', style: TextStyle(color: secColor, fontSize: 12)),
+                            Text('Tap to add images',
+                                style: TextStyle(color: secColor)),
+                            Text('(Select multiple)',
+                                style:
+                                    TextStyle(color: secColor, fontSize: 12)),
                           ],
                         ),
-),
+                ),
               ),
               const SizedBox(height: 16),
 
               TextFormField(
                 controller: _titleCtrl,
                 style: TextStyle(color: textColor),
-                decoration: _inputDecoration('Product Title', Icons.title, secColor, cardColor, dividerColor),
-                validator: (v) => v == null || v.isEmpty ? 'Title is required' : null,
+                decoration: _inputDecoration('Product Title', Icons.title,
+                    secColor, cardColor, dividerColor),
+                validator: (v) =>
+                    v == null || v.isEmpty ? 'Title is required' : null,
               ),
               const SizedBox(height: 16),
 
@@ -405,8 +500,11 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                 controller: _descCtrl,
                 maxLines: 3,
                 style: TextStyle(color: textColor),
-                decoration: _inputDecoration('Description', Icons.description, secColor, cardColor, dividerColor, alignLabelWithHint: true),
-                validator: (v) => v == null || v.isEmpty ? 'Description is required' : null,
+                decoration: _inputDecoration('Description', Icons.description,
+                    secColor, cardColor, dividerColor,
+                    alignLabelWithHint: true),
+                validator: (v) =>
+                    v == null || v.isEmpty ? 'Description is required' : null,
               ),
               const SizedBox(height: 16),
 
@@ -414,7 +512,8 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                 controller: _priceCtrl,
                 keyboardType: TextInputType.number,
                 style: TextStyle(color: textColor),
-                decoration: _inputDecoration('Price', Icons.attach_money, secColor, cardColor, dividerColor),
+                decoration: _inputDecoration('Price', Icons.attach_money,
+                    secColor, cardColor, dividerColor),
                 validator: (v) {
                   if (v == null || v.isEmpty) return 'Price is required';
                   if (double.tryParse(v) == null) return 'Enter a valid number';
@@ -431,18 +530,20 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
               ),
               const SizedBox(height: 24),
 
-              const Text('Category *', style: TextStyle(fontWeight: FontWeight.w600)),
+              const Text('Category *',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               categoriesAsync.when(
                 loading: () => _buildLoadingDropdown(secColor, cardColor),
-                error: (e, _) => _buildErrorDropdown('Error loading categories: $e', secColor, cardColor),
+                error: (e, _) => _buildErrorDropdown(
+                    'Error loading categories: $e', secColor, cardColor),
                 data: (categories) => categories.isEmpty
                     ? _buildEmptyCategories(secColor, cardColor)
                     : _buildCategoryDropdown(
-                        categories, 
-                        selectedCategory, 
-                        secColor, 
-                        cardColor, 
+                        categories,
+                        selectedCategory,
+                        secColor,
+                        cardColor,
                         dividerColor,
                       ),
               ),
@@ -452,12 +553,14 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                 child: TextButton.icon(
                   onPressed: _forceInitialize,
                   icon: const Icon(Icons.refresh, size: 16),
-                  label: const Text('Init Categories', style: TextStyle(fontSize: 12)),
+                  label: const Text('Init Categories',
+                      style: TextStyle(fontSize: 12)),
                 ),
               ),
               const SizedBox(height: 16),
 
-              const Text('Subcategory *', style: TextStyle(fontWeight: FontWeight.w600)),
+              const Text('Subcategory *',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               _buildSubcategoryDropdown(
                 selectedCategory,
@@ -479,7 +582,10 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                     foregroundColor: bgColor,
                   ),
                   child: _isLoading
-                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2))
                       : const Text('List Product'),
                 ),
               ),
@@ -530,7 +636,10 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
       ),
       child: Row(
         children: [
-          SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+          const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2)),
           const SizedBox(width: 12),
           Text('Loading categories...', style: TextStyle(color: secColor)),
         ],
@@ -538,7 +647,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
     );
   }
 
-Widget _buildErrorDropdown(String message, Color secColor, Color cardColor) {
+  Widget _buildErrorDropdown(String message, Color secColor, Color cardColor) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       decoration: BoxDecoration(
@@ -550,7 +659,8 @@ Widget _buildErrorDropdown(String message, Color secColor, Color cardColor) {
         children: [
           const Icon(Icons.error_outline, color: Colors.red, size: 20),
           const SizedBox(width: 12),
-          Expanded(child: Text(message, style: const TextStyle(color: Colors.red))),
+          Expanded(
+              child: Text(message, style: const TextStyle(color: Colors.red))),
         ],
       ),
     );
@@ -600,10 +710,28 @@ Widget _buildErrorDropdown(String message, Color secColor, Color cardColor) {
           hint: Text('Select Category', style: TextStyle(color: secColor)),
           icon: const Icon(Icons.arrow_drop_down),
           dropdownColor: cardColor,
-          items: categories.map((cat) {
+          items: (() {
+            // Remove duplicates by name
+            final seen = <String>{};
+            final unique = <CategoryEntity>[];
+            for (final c in categories) {
+              final n = c.name.toLowerCase().trim();
+              if (!seen.contains(n)) {
+                seen.add(n);
+                unique.add(c);
+              }
+            }
+            unique.sort((a, b) => a.name.compareTo(b.name));
+            return unique;
+          })()
+              .map((cat) {
             return DropdownMenuItem<CategoryEntity>(
               value: cat,
-              child: Text(cat.name, style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black)),
+              child: Text(cat.name,
+                  style: TextStyle(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white
+                          : Colors.black)),
             );
           }).toList(),
           onChanged: (category) {
@@ -632,7 +760,8 @@ Widget _buildErrorDropdown(String message, Color secColor, Color cardColor) {
         ),
         child: Row(
           children: [
-            Icon(Icons.lock_outline, color: secColor.withValues(alpha: 0.5), size: 20),
+            Icon(Icons.lock_outline,
+                color: secColor.withValues(alpha: 0.5), size: 20),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
@@ -647,7 +776,8 @@ Widget _buildErrorDropdown(String message, Color secColor, Color cardColor) {
 
     return subcategoriesAsync.when(
       loading: () => _buildLoadingDropdown(secColor, cardColor),
-      error: (e, _) => _buildErrorDropdown('Error loading subcategories', secColor, cardColor),
+      error: (e, _) => _buildErrorDropdown(
+          'Error loading subcategories', secColor, cardColor),
       data: (subcategories) {
         if (subcategories.isEmpty) {
           return Container(
@@ -675,13 +805,18 @@ Widget _buildErrorDropdown(String message, Color secColor, Color cardColor) {
             child: DropdownButton<SubcategoryEntity>(
               isExpanded: true,
               value: selectedSubcategory,
-              hint: Text('Select Subcategory', style: TextStyle(color: secColor)),
+              hint:
+                  Text('Select Subcategory', style: TextStyle(color: secColor)),
               icon: const Icon(Icons.arrow_drop_down),
               dropdownColor: cardColor,
               items: subcategories.map((sub) {
                 return DropdownMenuItem<SubcategoryEntity>(
                   value: sub,
-                  child: Text(sub.name, style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black)),
+                  child: Text(sub.name,
+                      style: TextStyle(
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.white
+                              : Colors.black)),
                 );
               }).toList(),
               onChanged: (subcategory) {

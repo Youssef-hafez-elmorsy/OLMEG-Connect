@@ -6,32 +6,51 @@ import '../models/chat_model.dart';
 
 abstract class ChatRemoteDataSource {
   Stream<List<ChatModel>> getChats(String userId);
+  Stream<ChatModel?> getChatStream(String chatId);
   Future<ChatModel?> getChatById(String chatId);
-  Future<ChatModel?> getChatByParticipants(String productId, String buyerId, String sellerId);
-  Future<ChatModel> createChat({required String productId, required String productTitle, required String buyerId, required String buyerName, required String sellerId, required String sellerName});
-  Future<void> sendMessage({required String chatId, required String senderId, required String senderName, required String content});
+  Future<ChatModel?> getChatByParticipants(
+      String productId, String buyerId, String sellerId);
+  Future<ChatModel> createChat(
+      {required String productId,
+      required String productTitle,
+      required String buyerId,
+      required String buyerName,
+      required String sellerId,
+      required String sellerName});
+  Future<void> sendMessage(
+      {required String chatId,
+      required String senderId,
+      required String senderName,
+      required String content});
 }
 
 class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
   final FirebaseFirestore _firestore;
-  final FirebaseStorage _storage;
   final _uuid = const Uuid();
 
-  ChatRemoteDataSourceImpl({required FirebaseFirestore firestore, required FirebaseStorage storage})
-      : _firestore = firestore, _storage = storage;
+  ChatRemoteDataSourceImpl(
+      {required FirebaseFirestore firestore, required FirebaseStorage storage})
+      : _firestore = firestore;
 
-  CollectionReference get _col => _firestore.collection(AppConstants.chatsCollection);
+  CollectionReference get _col =>
+      _firestore.collection(AppConstants.chatsCollection);
 
   @override
   Stream<List<ChatModel>> getChats(String userId) {
     // Simple query - get all chats and filter by participants
-    return _col
-        .orderBy('updatedAt', descending: true)
-        .snapshots()
-        .map((s) => s.docs
-            .map((d) => ChatModel.fromFirestore(d))
-            .where((chat) => chat.participants.contains(userId))
-            .toList());
+    return _col.orderBy('updatedAt', descending: true).snapshots().map((s) => s
+        .docs
+        .map((d) => ChatModel.fromFirestore(d))
+        .where((chat) => chat.participants.contains(userId))
+        .toList());
+  }
+
+  @override
+  Stream<ChatModel?> getChatStream(String chatId) {
+    return _col.doc(chatId).snapshots().map((doc) {
+      if (!doc.exists) return null;
+      return ChatModel.fromFirestore(doc);
+    });
   }
 
   @override
@@ -41,13 +60,13 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
       if (!doc.exists) return null;
       return ChatModel.fromFirestore(doc);
     } catch (e) {
-      print('[Chat] Error getting chat: $e');
       return null;
     }
   }
 
   @override
-  Future<ChatModel?> getChatByParticipants(String productId, String buyerId, String sellerId) async {
+  Future<ChatModel?> getChatByParticipants(
+      String productId, String buyerId, String sellerId) async {
     try {
       final snapshot = await _col
           .where('productId', isEqualTo: productId)
@@ -57,7 +76,6 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
       if (snapshot.docs.isEmpty) return null;
       return ChatModel.fromFirestore(snapshot.docs.first);
     } catch (e) {
-      print('[Chat] Error finding chat: $e');
       return null;
     }
   }
@@ -73,7 +91,7 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
   }) async {
     final chatId = _uuid.v4();
     final now = DateTime.now();
-    
+
     final model = ChatModel(
       id: chatId,
       productId: productId,
@@ -87,7 +105,7 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
       createdAt: now,
       updatedAt: now,
     );
-    
+
     await _col.doc(chatId).set(model.toFirestore());
     return model;
   }
@@ -106,7 +124,7 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
       'content': content,
       'createdAt': DateTime.now().toIso8601String(),
     };
-    
+
     await _col.doc(chatId).update({
       'messages': FieldValue.arrayUnion([message]),
       'updatedAt': DateTime.now(),

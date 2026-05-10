@@ -23,16 +23,11 @@ class ImageGrid extends StatelessWidget {
   bool _isBlobUrl(String url) {
     return url.startsWith('blob:');
   }
-  
+
   bool _isBase64(String url) {
     return url.startsWith('data:image');
   }
-  
-  List<int> _decodeBase64Image(String url) {
-    final base64String = url.split(',').last;
-    return base64Decode(base64String);
-  }
-  
+
   Uint8List _decodeBase64ToUint8List(String url) {
     final base64String = url.split(',').last;
     return Uint8List.fromList(base64Decode(base64String));

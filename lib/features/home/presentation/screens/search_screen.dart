@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:olmeg_connect/core/theme/app_theme.dart';
+import 'package:olmeg_connect/core/utils/currency_formatter.dart';
 import 'package:olmeg_connect/features/products/domain/entities/product_entity.dart';
-import 'package:olmeg_connect/features/products/presentation/screens/product_detail_screen.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
@@ -37,34 +37,35 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     setState(() => _isSearching = true);
 
     try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('products')
-          .get();
+      final snapshot =
+          await FirebaseFirestore.instance.collection('products').get();
 
-      final results = snapshot.docs
-          .map((doc) {
-            final data = doc.data();
-            return ProductEntity(
-              id: doc.id,
-              title: data['title'] ?? '',
-              description: data['description'] ?? '',
-              price: (data['price'] as num?)?.toDouble() ?? 0,
-              category: data['category'] ?? '',
-              imageUrl: data['imageUrl'] ?? '',
-              sellerId: data['sellerId'] ?? '',
-              sellerName: data['sellerName'] ?? '',
-              createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-              city: data['location'] ?? '',
-              isFavorite: false,
-            );
-          })
-          .where((p) {
-            final q = query.toLowerCase();
-            return p.title.toLowerCase().contains(q) ||
-                p.description.toLowerCase().contains(q) ||
-                p.category.toLowerCase().contains(q);
-          })
-          .toList();
+      final results = snapshot.docs.where((doc) {
+        final data = doc.data();
+        final status = data['moderationStatus'] as String?;
+        return status == null || status == 'approved';
+      }).map((doc) {
+        final data = doc.data();
+        return ProductEntity(
+          id: doc.id,
+          title: data['title'] ?? '',
+          description: data['description'] ?? '',
+          price: (data['price'] as num?)?.toDouble() ?? 0,
+          category: data['categoryName'] ?? data['category'] ?? '',
+          imageUrl: data['imageUrl'] ?? '',
+          sellerId: data['sellerId'] ?? '',
+          sellerName: data['sellerName'] ?? '',
+          createdAt:
+              (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+          city: data['location'] ?? '',
+          isFavorite: false,
+        );
+      }).where((p) {
+        final q = query.toLowerCase();
+        return p.title.toLowerCase().contains(q) ||
+            p.description.toLowerCase().contains(q) ||
+            p.category.toLowerCase().contains(q);
+      }).toList();
 
       setState(() {
         _results = results;
@@ -80,8 +81,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isDark ? const Color(0xFF0F172A) : const Color(0xFFF5F5F7);
-    final textColor = isDark ? const Color(0xFFF8FAFC) : const Color(0xFF1E293B);
-    final hintColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final textColor =
+        isDark ? const Color(0xFFF8FAFC) : const Color(0xFF1E293B);
+    final hintColor =
+        isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -186,8 +189,10 @@ class _SearchResultCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final surfaceColor = isDark ? const Color(0xFF1E293B) : const Color(0xFFFFFFFF);
-    final textColor = isDark ? const Color(0xFFF8FAFC) : const Color(0xFF1E293B);
+    final surfaceColor =
+        isDark ? const Color(0xFF1E293B) : const Color(0xFFFFFFFF);
+    final textColor =
+        isDark ? const Color(0xFFF8FAFC) : const Color(0xFF1E293B);
     final secColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
 
     return GestureDetector(
@@ -215,14 +220,18 @@ class _SearchResultCard extends StatelessWidget {
                       errorBuilder: (_, __, ___) => Container(
                         width: 80,
                         height: 80,
-                        color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                        color: isDark
+                            ? const Color(0xFF334155)
+                            : const Color(0xFFE2E8F0),
                         child: Icon(Icons.image, color: secColor),
                       ),
                     )
                   : Container(
                       width: 80,
                       height: 80,
-                      color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                      color: isDark
+                          ? const Color(0xFF334155)
+                          : const Color(0xFFE2E8F0),
                       child: Icon(Icons.image, color: secColor),
                     ),
             ),
@@ -243,7 +252,7 @@ class _SearchResultCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '\$${product.price.toStringAsFixed(0)}',
+                    CurrencyFormatter.egp(product.price),
                     style: const TextStyle(
                       color: AppColors.primary,
                       fontSize: 16,

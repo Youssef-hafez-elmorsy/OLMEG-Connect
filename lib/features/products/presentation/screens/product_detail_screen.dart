@@ -2,12 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:olmeg_connect/core/theme/app_theme.dart';
+import 'package:olmeg_connect/core/utils/currency_formatter.dart';
 import 'package:olmeg_connect/core/widgets/common_widgets.dart';
 import 'package:olmeg_connect/core/widgets/product_color_swatch.dart' as swatch;
 import 'package:olmeg_connect/features/products/domain/entities/product_entity.dart';
+import 'package:olmeg_connect/features/products/presentation/screens/cart_screen.dart';
 import 'package:olmeg_connect/features/products/presentation/providers/product_provider.dart';
 import 'package:olmeg_connect/features/auth/presentation/providers/auth_provider.dart';
 import 'package:olmeg_connect/features/chat/presentation/providers/chat_provider.dart';
+import 'package:olmeg_connect/features/payments/presentation/providers/payment_provider.dart';
+import 'package:olmeg_connect/features/ratings/presentation/widgets/rating_widget.dart';
 
 class ProductDetailScreen extends ConsumerStatefulWidget {
   final ProductEntity product;
@@ -15,11 +19,11 @@ class ProductDetailScreen extends ConsumerStatefulWidget {
   const ProductDetailScreen({super.key, required this.product});
 
   @override
-  ConsumerState<ProductDetailScreen> createState() => _ProductDetailScreenState();
+  ConsumerState<ProductDetailScreen> createState() =>
+      _ProductDetailScreenState();
 }
 
 class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
-  final int _selectedImageIndex = 0;
   int _quantity = 1;
   String? _selectedColor;
   bool _isFavorite = false;
@@ -40,8 +44,10 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     }
 
     setState(() => _isFavorite = !_isFavorite);
-    
-    await ref.read(favoriteNotifierProvider.notifier).toggleFavorite(widget.product.id);
+
+    await ref
+        .read(favoriteNotifierProvider.notifier)
+        .toggleFavorite(widget.product.id);
   }
 
   void _startChat(BuildContext context, WidgetRef ref) async {
@@ -53,18 +59,117 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       return;
     }
 
-    final chatId = await ref.read(chatNotifierProvider.notifier).createChat(
-      productId: widget.product.id,
-      productTitle: widget.product.title,
-      buyerId: user.id,
-      buyerName: user.name,
-      sellerId: widget.product.sellerId,
-      sellerName: widget.product.sellerName,
-    );
-
-    if (chatId != null && context.mounted) {
-      context.push('/chat/$chatId');
+    // Check if user is the seller
+    if (user.id == widget.product.sellerId) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('You cannot message yourself')),
+      );
+      return;
     }
+
+    try {
+      final chatId = await ref.read(chatNotifierProvider.notifier).createChat(
+            productId: widget.product.id,
+            productTitle: widget.product.title,
+            buyerId: user.id,
+            buyerName: user.name,
+            sellerId: widget.product.sellerId,
+            sellerName: widget.product.sellerName,
+          );
+
+      if (chatId != null && context.mounted) {
+        final chat =
+            await ref.read(chatRemoteDataSourceProvider).getChatById(chatId);
+        if (chat != null && context.mounted) {
+          context.push('/chat/$chatId', extra: chat);
+        }
+      } else if (chatId == null && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not create chat. Try again.')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
+  }
+
+  void _buyNow(BuildContext context, WidgetRef ref) async {
+    final user = ref.read(authStateProvider).value;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please sign in to purchase')),
+      );
+      return;
+    }
+
+    final totalPrice = widget.product.price * _quantity;
+
+    try {
+      final paymentAsync = ref.read(createPaymentProvider(
+        (amount: totalPrice, productId: widget.product.id, quantity: _quantity),
+      ));
+
+      paymentAsync.when(
+        data: (payment) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Payment initiated for ${CurrencyFormatter.egp(totalPrice)}. Order ID: ${payment.id}',
+                ),
+              ),
+            );
+          }
+        },
+        loading: () {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Processing payment...')),
+            );
+          }
+        },
+        error: (error, stack) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Error: $error')),
+            );
+          }
+        },
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
+  }
+
+  void _addToCart() {
+    ref.read(cartProvider.notifier).addItem(
+          CartItem(
+            id: widget.product.id,
+            title: widget.product.title,
+            price: widget.product.price,
+            imageUrl: widget.product.imageUrl,
+            sellerId: widget.product.sellerId,
+            sellerName: widget.product.sellerName,
+            quantity: _quantity,
+          ),
+        );
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('${widget.product.title} added to cart'),
+        action: SnackBarAction(
+          label: 'View cart',
+          onPressed: () => context.push('/cart'),
+        ),
+      ),
+    );
   }
 
   @override
@@ -90,7 +195,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                   color: AppColors.background.withValues(alpha: 0.7),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+                child:
+                    const Icon(Icons.arrow_back, color: AppColors.textPrimary),
               ),
             ),
             actions: [
@@ -104,12 +210,42 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                   ),
                   child: Icon(
                     _isFavorite ? Icons.favorite : Icons.favorite_border,
-                    color: _isFavorite ? AppColors.error : AppColors.textPrimary,
+                    color:
+                        _isFavorite ? AppColors.error : AppColors.textPrimary,
                   ),
                 ),
               ),
               GestureDetector(
-                onTap: () {},
+                onTap: () {
+                  showModalBottomSheet(
+                    context: context,
+                    builder: (context) => Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ListTile(
+                          leading: const Icon(Icons.share),
+                          title: const Text('Share Product'),
+                          onTap: () {
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Product shared!')),
+                            );
+                          },
+                        ),
+                        ListTile(
+                          leading: const Icon(Icons.link),
+                          title: const Text('Copy Link'),
+                          onTap: () {
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Link copied!')),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  );
+                },
                 child: Container(
                   margin: const EdgeInsets.only(right: 8),
                   decoration: BoxDecoration(
@@ -125,7 +261,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                   ? ImageGallery(images: images, height: 300)
                   : Container(
                       color: AppColors.card,
-                      child: const Icon(Icons.image_outlined, size: 64, color: AppColors.textSecondary),
+                      child: const Icon(Icons.image_outlined,
+                          size: 64, color: AppColors.textSecondary),
                     ),
             ),
           ),
@@ -170,37 +307,54 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                   if (product.rating > 0)
                     Row(
                       children: [
-                        ...List.generate(5, (i) => Icon(
-                          i < product.rating.floor() ? Icons.star : Icons.star_border,
-                          size: 18,
-                          color: AppColors.primary,
-                        )),
+                        ...List.generate(
+                            5,
+                            (i) => Icon(
+                                  i < product.rating.floor()
+                                      ? Icons.star
+                                      : Icons.star_border,
+                                  size: 18,
+                                  color: AppColors.primary,
+                                )),
                         const SizedBox(width: AppSpacing.sm),
                         Text(
                           '${product.rating.toStringAsFixed(1)} (${product.reviewsCount} reviews)',
-                          style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                          style: const TextStyle(
+                              color: AppColors.textSecondary, fontSize: 14),
                         ),
                       ],
                     ),
+                  const SizedBox(height: AppSpacing.md),
+                  RatingWidget(userId: product.sellerId, showReviews: true),
                   const SizedBox(height: AppSpacing.lg),
-                  PriceBadge(price: product.price, originalPrice: product.originalPrice),
+                  PriceBadge(
+                      price: product.price,
+                      originalPrice: product.originalPrice),
                   const SizedBox(height: AppSpacing.lg),
                   Row(
                     children: [
-                      const Icon(Icons.location_on, size: 16, color: AppColors.textSecondary),
+                      const Icon(Icons.location_on,
+                          size: 16, color: AppColors.textSecondary),
                       const SizedBox(width: 4),
-                      Text(product.city, style: const TextStyle(color: AppColors.textSecondary)),
+                      Text(product.city,
+                          style:
+                              const TextStyle(color: AppColors.textSecondary)),
                       const Spacer(),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.sm, vertical: 4),
                         decoration: BoxDecoration(
-                          color: product.inStock ? AppColors.success.withValues(alpha: 0.2) : AppColors.error.withValues(alpha: 0.2),
+                          color: product.inStock
+                              ? AppColors.success.withValues(alpha: 0.2)
+                              : AppColors.error.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(AppRadius.sm),
                         ),
                         child: Text(
                           product.inStock ? 'In Stock' : 'Out of Stock',
                           style: TextStyle(
-                            color: product.inStock ? AppColors.success : AppColors.error,
+                            color: product.inStock
+                                ? AppColors.success
+                                : AppColors.error,
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                           ),
@@ -209,35 +363,59 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                     ],
                   ),
                   const Divider(height: AppSpacing.xl),
-                  const Text('Description', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                  const Text('Description',
+                      style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary)),
                   const SizedBox(height: AppSpacing.sm),
-                  Text(product.description, style: const TextStyle(fontSize: 15, height: 1.6, color: AppColors.textSecondary)),
+                  Text(product.description,
+                      style: const TextStyle(
+                          fontSize: 15,
+                          height: 1.6,
+                          color: AppColors.textSecondary)),
                   if (product.features.isNotEmpty) ...[
                     const SizedBox(height: AppSpacing.xl),
-                    const Text('Features', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                    const Text('Features',
+                        style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary)),
                     const SizedBox(height: AppSpacing.sm),
                     Wrap(
                       spacing: AppSpacing.sm,
                       runSpacing: AppSpacing.sm,
-                      children: product.features.map((f) => Container(
-                        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-                        decoration: BoxDecoration(
-                          color: AppColors.surface,
-                          borderRadius: BorderRadius.circular(AppRadius.xl),
-                          border: Border.all(color: AppColors.divider),
-                        ),
-                        child: Text(f, style: const TextStyle(color: AppColors.textSecondary)),
-                      )).toList(),
+                      children: product.features
+                          .map((f) => Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: AppSpacing.md,
+                                    vertical: AppSpacing.sm),
+                                decoration: BoxDecoration(
+                                  color: AppColors.surface,
+                                  borderRadius:
+                                      BorderRadius.circular(AppRadius.xl),
+                                  border: Border.all(color: AppColors.divider),
+                                ),
+                                child: Text(f,
+                                    style: const TextStyle(
+                                        color: AppColors.textSecondary)),
+                              ))
+                          .toList(),
                     ),
                   ],
                   if (product.colors.isNotEmpty) ...[
                     const SizedBox(height: AppSpacing.xl),
-                    const Text('Colors', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                    const Text('Colors',
+                        style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary)),
                     const SizedBox(height: AppSpacing.sm),
                     swatch.ColorSwatch(
                       colors: product.colors,
                       selectedColor: _selectedColor,
-                      onColorSelected: (c) => setState(() => _selectedColor = c),
+                      onColorSelected: (c) =>
+                          setState(() => _selectedColor = c),
                     ),
                   ],
                   const SizedBox(height: AppSpacing.xl),
@@ -264,8 +442,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         ],
       ),
       bottomNavigationBar: BottomActionBar(
-        onAddToCart: () {},
-        onBuyNow: () {},
+        onAddToCart: _addToCart,
+        onBuyNow: () => _buyNow(context, ref),
       ),
     );
   }

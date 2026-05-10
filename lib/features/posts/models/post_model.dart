@@ -5,6 +5,7 @@ class PostModel {
   final String id;
   final String authorId;
   final String authorName;
+  final String? authorProfileImageUrl;
   final String authorAvatarColor;
   final String text;
   final String? postType; // "made" | "wanted" - null means old post, treat as "made"
@@ -26,6 +27,7 @@ class PostModel {
     required this.id,
     required this.authorId,
     required this.authorName,
+    this.authorProfileImageUrl,
     required this.authorAvatarColor,
     required this.text,
     this.postType,
@@ -55,6 +57,7 @@ class PostModel {
       id: doc.id,
       authorId: data['authorId'] ?? '',
       authorName: data['authorName'] ?? '',
+      authorProfileImageUrl: data['authorProfileImageUrl'],
       authorAvatarColor: data['authorAvatarColor'] ?? '0xFF9E9E9E',
       text: data['text'] ?? '',
       postType: data['postType'],
@@ -85,6 +88,7 @@ class PostModel {
       'id': id,
       'authorId': authorId,
       'authorName': authorName,
+      'authorProfileImageUrl': authorProfileImageUrl,
       'authorAvatarColor': authorAvatarColor,
       'text': text,
       'postType': postType,
@@ -148,6 +152,7 @@ class CommentModel {
   final String postId;
   final String authorId;
   final String authorName;
+  final String? authorProfileImageUrl;
   final String authorAvatarColor;
   final String text;
   final DateTime createdAt;
@@ -157,6 +162,7 @@ class CommentModel {
     required this.postId,
     required this.authorId,
     required this.authorName,
+    this.authorProfileImageUrl,
     required this.authorAvatarColor,
     required this.text,
     required this.createdAt,
@@ -169,6 +175,7 @@ class CommentModel {
       postId: postId,
       authorId: data['authorId'] ?? '',
       authorName: data['authorName'] ?? '',
+      authorProfileImageUrl: data['authorProfileImageUrl'],
       authorAvatarColor: data['authorAvatarColor'] ?? '0xFF9E9E9E',
       text: data['text'] ?? '',
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
@@ -181,6 +188,7 @@ class CommentModel {
       'postId': postId,
       'authorId': authorId,
       'authorName': authorName,
+      'authorProfileImageUrl': authorProfileImageUrl,
       'authorAvatarColor': authorAvatarColor,
       'text': text,
       'createdAt': Timestamp.fromDate(createdAt),
@@ -193,17 +201,20 @@ class CommentModel {
 class UserIdentity {
   final String userId;
   final String displayName;
+  final String? profileImageUrl;
   final String avatarColor;
 
   UserIdentity({
     required this.userId,
     required this.displayName,
+    this.profileImageUrl,
     required this.avatarColor,
   });
 
   Map<String, dynamic> toJson() => {
     'userId': userId,
     'displayName': displayName,
+    'profileImageUrl': profileImageUrl,
     'avatarColor': avatarColor,
   };
 
@@ -211,6 +222,7 @@ class UserIdentity {
     return UserIdentity(
       userId: json['userId'] ?? '',
       displayName: json['displayName'] ?? '',
+      profileImageUrl: json['profileImageUrl'],
       avatarColor: json['avatarColor'] ?? '0xFF9E9E9E',
     );
   }

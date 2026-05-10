@@ -12,8 +12,9 @@ class FirestoreService {
   static final FirebaseStorage _storage = FirebaseStorage.instance;
 
   static CollectionReference get _postsRef => _firestore.collection('posts');
-  
-  static Stream<List<PostModel>> getPostsStream({int limit = 20, DocumentSnapshot? lastDoc, String? postType}) {
+
+  static Stream<List<PostModel>> getPostsStream(
+      {int limit = 20, DocumentSnapshot? lastDoc, String? postType}) {
     Query query = _postsRef.orderBy('createdAt', descending: true).limit(limit);
     if (lastDoc != null) {
       query = query.startAfterDocument(lastDoc);
@@ -23,19 +24,29 @@ class FirestoreService {
     return query.snapshots().map((snap) {
       var posts = snap.docs.map((doc) => PostModel.fromFirestore(doc)).toList();
       if (postType != null && postType != 'all') {
-        posts = posts.where((p) => (p.isMadePost && postType == 'made') || (p.isWantedPost && postType == 'wanted')).toList();
+        posts = posts
+            .where((p) =>
+                (p.isMadePost && postType == 'made') ||
+                (p.isWantedPost && postType == 'wanted'))
+            .toList();
       }
       return posts;
     });
   }
 
-  static Stream<List<PostModel>> getUserPostsStream(String authorId, {String? postType}) {
-    Query query = _postsRef.where('authorId', isEqualTo: authorId).orderBy('createdAt', descending: true);
-    // Use client-side filtering to avoid composite index requirement
+  static Stream<List<PostModel>> getUserPostsStream(String authorId,
+      {String? postType}) {
+    Query query = _postsRef.where('authorId', isEqualTo: authorId);
+    // Sort client-side to avoid requiring a Firestore composite index.
     return query.snapshots().map((snap) {
       var posts = snap.docs.map((doc) => PostModel.fromFirestore(doc)).toList();
+      posts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       if (postType != null && postType != 'all') {
-        posts = posts.where((p) => (p.isMadePost && postType == 'made') || (p.isWantedPost && postType == 'wanted')).toList();
+        posts = posts
+            .where((p) =>
+                (p.isMadePost && postType == 'made') ||
+                (p.isWantedPost && postType == 'wanted'))
+            .toList();
       }
       return posts;
     });
@@ -45,7 +56,8 @@ class FirestoreService {
     await _postsRef.doc(post.id).set(post.toMap());
   }
 
-  static Future<void> updatePost(String postId, Map<String, dynamic> data) async {
+  static Future<void> updatePost(
+      String postId, Map<String, dynamic> data) async {
     await _postsRef.doc(postId).update(data);
   }
 
@@ -54,7 +66,7 @@ class FirestoreService {
     if (post.exists) {
       final postData = post.data() as Map<String, dynamic>;
       final imageURLs = List<String>.from(postData['imageURLs'] ?? []);
-      
+
       for (final url in imageURLs) {
         try {
           final ref = _storage.refFromURL(url);
@@ -63,12 +75,12 @@ class FirestoreService {
           debugPrint('Error deleting image: $e');
         }
       }
-      
+
       final comments = await _postsRef.doc(postId).collection('comments').get();
       for (final comment in comments.docs) {
         await comment.reference.delete();
       }
-      
+
       await _postsRef.doc(postId).delete();
     }
   }
@@ -85,12 +97,13 @@ class FirestoreService {
     final data = post.data() as Map<String, dynamic>;
     final reactions = Map<String, List<String>>.from(
       (data['reactions'] as Map<String, dynamic>?)?.map(
-        (k, v) => MapEntry(k, List<String>.from(v ?? [])),
-      ) ?? {},
+            (k, v) => MapEntry(k, List<String>.from(v ?? [])),
+          ) ??
+          {},
     );
 
     final currentList = reactions[reactionType] ?? [];
-    
+
     if (currentList.contains(userId)) {
       await postRef.update({
         'reactions.$reactionType': FieldValue.arrayRemove([userId])
@@ -109,26 +122,35 @@ class FirestoreService {
     }
   }
 
-  static CollectionReference commentsRef(String postId) => _postsRef.doc(postId).collection('comments');
+  static CollectionReference commentsRef(String postId) =>
+      _postsRef.doc(postId).collection('comments');
 
   static Stream<List<CommentModel>> getCommentsStream(String postId) {
-    return commentsRef(postId).orderBy('createdAt').snapshots().map((snap) => snap.docs.map((doc) => CommentModel.fromFirestore(postId, doc)).toList());
+    return commentsRef(postId).orderBy('createdAt').snapshots().map((snap) =>
+        snap.docs
+            .map((doc) => CommentModel.fromFirestore(postId, doc))
+            .toList());
   }
 
   static Future<void> addComment(CommentModel comment) async {
     await commentsRef(comment.postId).doc(comment.id).set(comment.toMap());
-    await _postsRef.doc(comment.postId).update({'commentCount': FieldValue.increment(1)});
+    await _postsRef
+        .doc(comment.postId)
+        .update({'commentCount': FieldValue.increment(1)});
   }
 
   static Future<void> deleteComment(String postId, String commentId) async {
     await commentsRef(postId).doc(commentId).delete();
-    await _postsRef.doc(postId).update({'commentCount': FieldValue.increment(-1)});
+    await _postsRef
+        .doc(postId)
+        .update({'commentCount': FieldValue.increment(-1)});
   }
 
   static Future<String> uploadImage(XFile file, String authorId) async {
     final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final fileName = '${timestamp}_${file.name.replaceAll(RegExp(r'[^\w\s.-]'), '_')}';
-    
+    final fileName =
+        '${timestamp}_${file.name.replaceAll(RegExp(r'[^\w\s.-]'), '_')}';
+
     if (kIsWeb) {
       try {
         final bytes = await file.readAsBytes();
@@ -147,7 +169,7 @@ class FirestoreService {
       return await snapshot.ref.getDownloadURL();
     }
   }
-  
+
   static String _getImageExtension(String fileName) {
     final ext = fileName.split('.').last.toLowerCase();
     if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].contains(ext)) {
@@ -156,7 +178,8 @@ class FirestoreService {
     return 'jpeg';
   }
 
-  static Future<List<String>> uploadImages(List<XFile> files, String authorId) async {
+  static Future<List<String>> uploadImages(
+      List<XFile> files, String authorId) async {
     final urls = <String>[];
     for (final file in files) {
       final url = await uploadImage(file, authorId);

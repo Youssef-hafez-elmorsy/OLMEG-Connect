@@ -86,10 +86,9 @@ class FavoritesScreen extends ConsumerWidget {
 
   Future<List<ProductEntity>> _fetchFavoriteProducts(List<String> favoriteIds) async {
     if (favoriteIds.isEmpty) return [];
-    
+
     final products = <ProductEntity>[];
-    final batch = FirebaseFirestore.instance.batch();
-    
+
     for (final id in favoriteIds) {
       final doc = await FirebaseFirestore.instance.collection('products').doc(id).get();
       if (doc.exists) {

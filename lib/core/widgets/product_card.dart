@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:olmeg_connect/core/theme/app_theme.dart';
+import 'package:olmeg_connect/core/utils/currency_formatter.dart';
 import '../../../features/products/domain/entities/product_entity.dart';
 
 class ProductCard extends StatelessWidget {
@@ -20,15 +21,20 @@ class ProductCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final surfaceColor = isDark ? const Color(0xFF1E293B) : const Color(0xFFFFFFFF);
-    final dividerColor = isDark ? const Color(0xFF475569) : const Color(0xFFE2E8F0);
+    final surfaceColor =
+        isDark ? const Color(0xFF1E293B) : const Color(0xFFFFFFFF);
+    final dividerColor =
+        isDark ? const Color(0xFF475569) : const Color(0xFFE2E8F0);
     final bgColor = isDark ? const Color(0xFF0F172A) : const Color(0xFFF5F5F7);
-    final textColor = isDark ? const Color(0xFFF8FAFC) : const Color(0xFF1E293B);
+    final textColor =
+        isDark ? const Color(0xFFF8FAFC) : const Color(0xFF1E293B);
     final secColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
-    final cardColor = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+    final cardColor =
+        isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
 
     return GestureDetector(
-      onTap: onTap ?? () => context.push('/product/${product.id}', extra: product),
+      onTap:
+          onTap ?? () => context.push('/product/${product.id}', extra: product),
       child: Container(
         decoration: BoxDecoration(
           color: surfaceColor,
@@ -59,8 +65,11 @@ class ProductCard extends StatelessWidget {
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
-                          product.isFavorite ? Icons.favorite : Icons.favorite_border,
-                          color: product.isFavorite ? AppColors.error : textColor,
+                          product.isFavorite
+                              ? Icons.favorite
+                              : Icons.favorite_border,
+                          color:
+                              product.isFavorite ? AppColors.error : textColor,
                           size: 18,
                         ),
                       ),
@@ -132,7 +141,7 @@ class ProductCard extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        '\$${product.price.toStringAsFixed(0)}',
+                        CurrencyFormatter.egp(product.price),
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -192,8 +201,9 @@ class ProductCard extends StatelessWidget {
               width: 24,
               height: 24,
               child: CircularProgressIndicator(
-                value: progress.expectedTotalBytes != null 
-                    ? progress.cumulativeBytesLoaded / progress.expectedTotalBytes! 
+                value: progress.expectedTotalBytes != null
+                    ? progress.cumulativeBytesLoaded /
+                        progress.expectedTotalBytes!
                     : null,
                 strokeWidth: 2,
                 color: AppColors.primary,

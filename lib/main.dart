@@ -3,32 +3,55 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:olmeg_connect/core/localization/app_localizations.dart';
 import 'package:olmeg_connect/core/router/app_router.dart';
 import 'package:olmeg_connect/core/theme/app_theme.dart';
 import 'package:olmeg_connect/firebase_options.dart';
 import 'package:olmeg_connect/features/settings/providers/settings_provider.dart';
+import 'package:olmeg_connect/core/services/notification_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
-    print('[Main] Initializing Firebase...');
     await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform);
-    print('[Main] Firebase initialized successfully');
   } catch (e) {
     if (kIsWeb) {
-      print('[Main] Running in web mode without Firebase');
+      // Running in web mode without Firebase
     }
   }
 
   runApp(const ProviderScope(child: OlmegConnectApp()));
 }
 
-class OlmegConnectApp extends ConsumerWidget {
+class OlmegConnectApp extends ConsumerStatefulWidget {
   const OlmegConnectApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<OlmegConnectApp> createState() => _OlmegConnectAppState();
+}
+
+class _OlmegConnectAppState extends ConsumerState<OlmegConnectApp> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeNotifications();
+    });
+  }
+
+  Future<void> _initializeNotifications() async {
+    try {
+      await NotificationService.instance.initialize();
+    } catch (e) {
+      if (kDebugMode) {
+        // Notification initialization error
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final router = ref.watch(appRouterProvider);
     final settings = ref.watch(settingsNotifierProvider);
     final locale = ref.watch(localeProvider);
@@ -38,6 +61,7 @@ class OlmegConnectApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       locale: locale,
       localizationsDelegates: const [
+        AppLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,

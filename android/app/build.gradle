@@ -2,11 +2,12 @@ plugins {
     id "com.android.application"
     id "kotlin-android"
     id "dev.flutter.flutter-gradle-plugin"
+    id "com.google.gms.google-services"
 }
 
 android {
     namespace "com.example.olmeg_connect"
-    compileSdkVersion 36
+    compileSdk 36
     ndkVersion = "28.2.13676358"
 
     compileOptions {
@@ -20,8 +21,10 @@ android {
 
     defaultConfig {
         applicationId "com.example.olmeg_connect"
-        minSdkVersion 21
-        targetSdkVersion 35
+        minSdkVersion flutter.minSdkVersion
+        targetSdk 36
+        versionCode flutter.versionCode
+        versionName flutter.versionName
         multiDexEnabled true
     }
 

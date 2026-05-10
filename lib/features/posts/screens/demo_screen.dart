@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:olmeg_connect/features/posts/models/post_model.dart';
-import 'package:olmeg_connect/features/posts/services/user_service.dart';
-import 'package:olmeg_connect/features/posts/widgets/avatar_widget.dart';
 import 'package:olmeg_connect/features/posts/widgets/post_card.dart';
-import 'package:olmeg_connect/features/posts/screens/create_post_screen.dart';
 
 class DemoScreen extends StatelessWidget {
   const DemoScreen({super.key});

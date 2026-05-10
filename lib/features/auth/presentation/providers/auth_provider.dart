@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:olmeg_connect/core/services/notification_service.dart';
 import '../../data/datasources/auth_remote_datasource.dart';
 import '../../data/repositories/auth_repository_impl.dart';
 import '../../domain/entities/user_entity.dart';
@@ -44,6 +45,10 @@ class AuthNotifier extends Notifier<AsyncValue<UserEntity?>> {
       },
       (user) {
         state = AsyncValue.data(user);
+        if (user.id.isNotEmpty) {
+          NotificationService.instance.saveTokenForUser(user.id);
+          _sendWelcomeMessage(user.id, user.name, false);
+        }
         return null;
       },
     );
@@ -59,6 +64,10 @@ class AuthNotifier extends Notifier<AsyncValue<UserEntity?>> {
       },
       (user) {
         state = AsyncValue.data(user);
+        if (user.id.isNotEmpty) {
+          NotificationService.instance.saveTokenForUser(user.id);
+          _sendWelcomeMessage(user.id, user.name, true);
+        }
         return null;
       },
     );
@@ -68,6 +77,26 @@ class AuthNotifier extends Notifier<AsyncValue<UserEntity?>> {
     await _signOut();
     state = const AsyncValue.data(null);
     ref.invalidate(authStateProvider);
+  }
+
+  Future<void> _sendWelcomeMessage(String userId, String userName, bool isNewUser) async {
+    try {
+      final fs = FirebaseFirestore.instance;
+      final welcomeMessage = isNewUser
+          ? 'Welcome to Olmeg Connect, $userName! 🎉\n\nOlmeg Connect is your marketplace for buying and selling products. You can:\n• Browse amazing deals\n• List your products for sale\n• Connect with sellers in chat\n• Save favorites\n\nHappy shopping!'
+          : 'Welcome back, $userName! 👋\n\nGreat to see you again on Olmeg Connect. Start browsing or check out new listings!';
+
+      await fs.collection('notifications').doc().set({
+        'userId': userId,
+        'title': isNewUser ? 'Welcome to Olmeg Connect! 🎉' : 'Welcome Back! 👋',
+        'body': welcomeMessage,
+        'type': 'welcome',
+        'read': false,
+        'createdAt': DateTime.now(),
+      });
+    } catch (e) {
+      // Silently fail
+    }
   }
 }
 
