@@ -14,6 +14,16 @@ Main goals of the app:
 - Enable user-to-user chat and notifications.
 - Provide admin moderation and broadcast capabilities.
 
+## Enterprise Roadmap
+
+The active enterprise planning track is managed through Spec Kit in `specs/003-enterprise-roadmap/`. That plan is the source of truth for production stabilization, security hardening, Admin Web Console evolution, Paymob-only payment infrastructure, analytics, fulfillment, notifications, AI, seller tooling, and scaling phases.
+
+Related roadmap documents:
+
+- `docs/master-enterprise-roadmap.md`
+- `docs/master-enterprise-roadmap-tasks.md`
+- `specs/003-enterprise-roadmap/tasks.md`
+
 ## Current Tech Stack
 
 ### Frontend
@@ -48,7 +58,7 @@ Main goals of the app:
 - `state_notifier`
 - `shared_preferences`
 - `timeago`
-- `flutter_paypal`
+- Paymob checkout through Firebase Cloud Functions and Paymob mobile/web checkout flows
 - `flutter_rating_bar`
 
 ## App Features
@@ -84,7 +94,7 @@ Based on the current codebase, Olmeg Connect includes the following functional a
 
 - Cart screen and cart provider
 - Payment provider and repository layer
-- PayPal package included in dependencies
+- Paymob-backed checkout session flow with backend verification
 
 ### Social Posts
 
@@ -400,6 +410,28 @@ Also present in the repository are several project notes and testing documents, 
 - [`TESTING_CHECKLIST.md`](/C:/flutter%20project/olmeg_connect/TESTING_CHECKLIST.md)
 
 These suggest active manual tracking of implementation and QA work alongside the app code.
+
+## Latest Update Notes
+
+Last updated: 2026-05-11
+
+Updates captured from the latest discussion:
+
+- Added the Amazon-style marketplace direction to Spec Kit under [`specs/001-amazon-style-marketplace`](/C:/flutter%20project/olmeg_connect/specs/001-amazon-style-marketplace).
+- Documented the project as a richer ecommerce marketplace with product discovery, cart, checkout, orders, seller tools, reviews, moderation, analytics, and English/Arabic support.
+- Updated the app branding direction with a reusable `AppBrandLockup`/logo component for auth screens.
+- Updated the marketplace tagline to `Everything you need in one place` with Arabic support.
+- Login and registration screens now use the shared brand lockup instead of duplicated logo/title markup.
+- Graduation project documentation was prepared outside the repo by updating the EELU template with the Olmeg Connect project data, student names, supervisor names, and `[ALEX]-2025`.
+
+Future update priorities:
+
+- Finish Phase 1 commerce foundation: product fields, richer cards/details, addresses, cart validation, checkout review, and cart tests.
+- Add the first-class `orders` feature with order entities, Firestore datasource, buyer order history, status timeline, payment connection, notifications, rules, and tests.
+- Add seller center screens for inventory, order queue, storefront/profile, policies, and seller access restrictions.
+- Redesign discovery with commerce-first home sections, deals, top-rated products, recently viewed products, related products, sorting, and analytics events.
+- Expand trust and moderation with verified purchase reviews, review images, report actions, admin queues, and stronger moderation tools.
+- Harden production readiness with Firestore indexes, stricter Firestore/Storage rules, skeleton/empty states, `flutter analyze`, `flutter test`, and manual QA in English and Arabic.
 
 ## Additional Project Documentation
 
