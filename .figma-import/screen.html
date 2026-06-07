@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Screen Import</title>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const screenTitle = params.get("title") || "Screen";
+    const imageName = params.get("img") || "figma-login-cdp.png";
+    document.title = screenTitle;
+    window.addEventListener("DOMContentLoaded", () => {
+      document.querySelector("h1").textContent = screenTitle;
+      const img = document.querySelector("img");
+      img.src = imageName;
+      img.alt = screenTitle;
+    });
+  </script>
+  <script src="https://mcp.figma.com/mcp/html-to-design/capture.js" async></script>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: #0f172a;
+      color: #f8fafc;
+      font-family: "Segoe UI", Arial, sans-serif;
+    }
+    main {
+      padding: 48px;
+    }
+    h1 {
+      margin: 0 0 18px;
+      color: #39ff14;
+      font-size: 28px;
+      letter-spacing: 0;
+    }
+    img {
+      display: block;
+      width: auto;
+      max-width: 720px;
+      height: auto;
+      border: 1px solid #334155;
+      border-radius: 18px;
+      box-shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Screen</h1>
+    <img alt="Screen">
+  </main>
+</body>
+</html>

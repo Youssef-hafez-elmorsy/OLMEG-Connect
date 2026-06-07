@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Olmeg Connect Figma Import</title>
+  <script src="https://mcp.figma.com/mcp/html-to-design/capture.js" async></script>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0f172a;
+      --panel: #182235;
+      --ink: #f8fafc;
+      --muted: #94a3b8;
+      --brand: #39ff14;
+      --line: #334155;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Segoe UI", Arial, sans-serif;
+    }
+
+    main {
+      width: 1800px;
+      padding: 56px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      color: var(--brand);
+      font-size: 42px;
+      font-weight: 800;
+      letter-spacing: 0;
+    }
+
+    .note {
+      margin: 0 0 40px;
+      color: var(--muted);
+      font-size: 18px;
+    }
+
+    h2 {
+      margin: 0 0 20px;
+      font-size: 24px;
+      font-weight: 750;
+      letter-spacing: 0;
+    }
+
+    section {
+      margin-bottom: 56px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, 390px);
+      gap: 32px;
+      align-items: start;
+    }
+
+    .reference-grid {
+      grid-template-columns: repeat(3, 455px);
+    }
+
+    figure {
+      margin: 0;
+    }
+
+    figcaption {
+      margin-bottom: 10px;
+      color: var(--muted);
+      font-size: 15px;
+      font-weight: 650;
+    }
+
+    img {
+      display: block;
+      width: 100%;
+      height: auto;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Olmeg Connect App Screens</h1>
+    <p class="note">Exact captured app screens arranged for Figma import.</p>
+
+    <section>
+      <h2>Core Mobile App</h2>
+      <div class="grid">
+        <figure><figcaption>Login</figcaption><img src="figma-login-cdp.png" alt="Login screen"></figure>
+        <figure><figcaption>Home</figcaption><img src="figma-home-loaded.png" alt="Home screen"></figure>
+        <figure><figcaption>Feed</figcaption><img src="figma-feed.png" alt="Feed screen"></figure>
+        <figure><figcaption>Add Product</figcaption><img src="figma-add-product.png" alt="Add product screen"></figure>
+        <figure><figcaption>Chat</figcaption><img src="figma-chat.png" alt="Chat screen"></figure>
+        <figure><figcaption>Notifications</figcaption><img src="figma-notifications.png" alt="Notifications screen"></figure>
+        <figure><figcaption>Profile</figcaption><img src="figma-profile.png" alt="Profile screen"></figure>
+      </div>
+    </section>
+
+    <section>
+      <h2>Provided ScreenClip Reference</h2>
+      <div class="grid reference-grid">
+        <figure><figcaption>Reference 01</figcaption><img src="screenclip-01.png" alt="Reference screen 01"></figure>
+        <figure><figcaption>Reference 02</figcaption><img src="screenclip-02.png" alt="Reference screen 02"></figure>
+        <figure><figcaption>Reference 03</figcaption><img src="screenclip-03.png" alt="Reference screen 03"></figure>
+        <figure><figcaption>Reference 04</figcaption><img src="screenclip-04.png" alt="Reference screen 04"></figure>
+        <figure><figcaption>Reference 05</figcaption><img src="screenclip-05.png" alt="Reference screen 05"></figure>
+        <figure><figcaption>Reference 06</figcaption><img src="screenclip-06.png" alt="Reference screen 06"></figure>
+        <figure><figcaption>Reference 07</figcaption><img src="screenclip-07.png" alt="Reference screen 07"></figure>
+        <figure><figcaption>Reference 08</figcaption><img src="screenclip-08.png" alt="Reference screen 08"></figure>
+        <figure><figcaption>Reference 09</figcaption><img src="screenclip-09.png" alt="Reference screen 09"></figure>
+        <figure><figcaption>Reference 10</figcaption><img src="screenclip-10.png" alt="Reference screen 10"></figure>
+        <figure><figcaption>Reference 11</figcaption><img src="screenclip-11.png" alt="Reference screen 11"></figure>
+        <figure><figcaption>Reference 12</figcaption><img src="screenclip-12.png" alt="Reference screen 12"></figure>
+        <figure><figcaption>Reference 13</figcaption><img src="screenclip-13.png" alt="Reference screen 13"></figure>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
