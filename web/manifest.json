@@ -1,11 +1,11 @@
 {
-    "name": "olmeg_connect",
-    "short_name": "olmeg_connect",
+    "name": "Olmeg Connect Marketplace",
+    "short_name": "Olmeg",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#FFFFFF",
+    "theme_color": "#6C63FF",
+    "description": "Buy, sell, chat, and manage merchant deliveries on Olmeg Connect.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

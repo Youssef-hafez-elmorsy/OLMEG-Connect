@@ -5,6 +5,12 @@ plugins {
     id "com.google.gms.google-services"
 }
 
+repositories {
+    flatDir {
+        dirs "libs"
+    }
+}
+
 android {
     namespace "com.example.olmeg_connect"
     compileSdk 36
@@ -28,6 +34,10 @@ android {
         multiDexEnabled true
     }
 
+    buildFeatures {
+        dataBinding true
+    }
+
     buildTypes {
         release {
             minifyEnabled false
@@ -35,6 +45,12 @@ android {
             signingConfig = signingConfigs.debug
         }
     }
+}
+
+dependencies {
+    implementation fileTree(dir: "libs", include: ["*.jar", "*.aar"])
+    // After downloading the Paymob SDK package, replace the version below and uncomment it.
+    // implementation("com.paymob.sdk:Paymob-SDK:<downloaded-version>")
 }
 
 flutter {
