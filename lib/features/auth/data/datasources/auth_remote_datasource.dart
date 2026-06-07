@@ -2,12 +2,20 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/errors/failures.dart';
+import '../../domain/entities/merchant_verification_entity.dart';
+import '../models/merchant_verification_model.dart';
 import '../models/user_model.dart';
 
 abstract class AuthRemoteDataSource {
   Stream<UserModel?> get authStateChanges;
   Future<UserModel> signIn({required String email, required String password});
-  Future<UserModel> signUp({required String email, required String password, required String name});
+  Future<UserModel> signUp({
+    required String email,
+    required String password,
+    required String name,
+    AccountType accountType,
+    MerchantVerificationEntity? merchantVerification,
+  });
   Future<void> signOut();
   UserModel? get currentUser;
 }
@@ -23,15 +31,17 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         _firestore = firestore;
 
   @override
-  Stream<UserModel?> get authStateChanges => _auth.authStateChanges().asyncMap((user) async {
-        if (user == null) return null;
-        try {
-          final doc = await _firestore.collection(AppConstants.usersCollection).doc(user.uid).get();
+  Stream<UserModel?> get authStateChanges =>
+      _auth.authStateChanges().asyncExpand((user) {
+        if (user == null) return Stream<UserModel?>.value(null);
+        return _firestore
+            .collection(AppConstants.usersCollection)
+            .doc(user.uid)
+            .snapshots()
+            .map((doc) {
           if (!doc.exists) return null;
           return UserModel.fromFirestore(doc);
-        } catch (e) {
-          return null;
-        }
+        });
       });
 
   @override
@@ -44,21 +54,28 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       name: user.displayName ?? '',
       photoUrl: user.photoURL,
       role: 'user',
+      accountType: AccountType.regular,
+      merchantVerificationStatus: MerchantVerificationStatus.none,
       createdAt: DateTime.now(),
     );
   }
 
   @override
-  Future<UserModel> signIn({required String email, required String password}) async {
+  Future<UserModel> signIn(
+      {required String email, required String password}) async {
     try {
-      final credential = await _auth.signInWithEmailAndPassword(email: email, password: password);
+      final credential = await _auth.signInWithEmailAndPassword(
+          email: email, password: password);
       final user = credential.user;
 
       if (user == null) {
         throw const AuthFailure('No user returned after sign in.');
       }
 
-      final doc = await _firestore.collection(AppConstants.usersCollection).doc(user.uid).get();
+      final doc = await _firestore
+          .collection(AppConstants.usersCollection)
+          .doc(user.uid)
+          .get();
 
       if (doc.exists) {
         return UserModel.fromFirestore(doc);
@@ -71,7 +88,6 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         role: 'user',
         createdAt: DateTime.now(),
       );
-
     } on FirebaseAuthException catch (e) {
       throw AuthFailure(_mapAuthError(e.code));
     } on FirebaseException catch (e) {
@@ -82,9 +98,16 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   }
 
   @override
-  Future<UserModel> signUp({required String email, required String password, required String name}) async {
+  Future<UserModel> signUp({
+    required String email,
+    required String password,
+    required String name,
+    AccountType accountType = AccountType.regular,
+    MerchantVerificationEntity? merchantVerification,
+  }) async {
     try {
-      final credential = await _auth.createUserWithEmailAndPassword(email: email, password: password);
+      final credential = await _auth.createUserWithEmailAndPassword(
+          email: email, password: password);
       final user = credential.user;
 
       if (user == null) {
@@ -99,13 +122,39 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         id: user.uid,
         email: email,
         name: name,
-        role: 'user',
+        role: accountType == AccountType.merchant ? 'merchant' : 'user',
+        accountType: accountType,
+        merchantVerificationStatus: accountType == AccountType.merchant
+            ? MerchantVerificationStatus.submitted
+            : MerchantVerificationStatus.none,
         createdAt: DateTime.now(),
       );
-      await _firestore.collection(AppConstants.usersCollection).doc(user.uid).set(model.toFirestore());
+      final batch = _firestore.batch();
+      final userRef =
+          _firestore.collection(AppConstants.usersCollection).doc(user.uid);
+      batch.set(userRef, model.toFirestore());
+
+      if (accountType == AccountType.merchant && merchantVerification != null) {
+        final verification = MerchantVerificationModel(
+          userId: user.uid,
+          legalBusinessName: merchantVerification.legalBusinessName,
+          taxId: merchantVerification.taxId,
+          businessAddress: merchantVerification.businessAddress,
+          businessPhone: merchantVerification.businessPhone,
+          contactEmail: merchantVerification.contactEmail,
+          status: MerchantVerificationStatus.submitted,
+          createdAt: merchantVerification.createdAt,
+          updatedAt: merchantVerification.updatedAt,
+        );
+        batch.set(
+          _firestore.collection('merchant_verifications').doc(user.uid),
+          verification.toFirestore(),
+        );
+      }
+
+      await batch.commit();
 
       return model;
-
     } on FirebaseAuthException catch (e) {
       throw AuthFailure(_mapAuthError(e.code));
     } on FirebaseException catch (e) {

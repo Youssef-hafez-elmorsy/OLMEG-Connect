@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:uuid/uuid.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:olmeg_connect/features/payments/domain/entities/paymob_checkout_session.dart';
 import 'package:olmeg_connect/features/payments/domain/entities/payment_entity.dart';
 
 abstract class PaymentRemoteDataSource {
@@ -10,42 +11,24 @@ abstract class PaymentRemoteDataSource {
   Future<List<PaymentEntity>> getUserPayments(String userId);
 
   Future<void> updatePaymentStatus(String paymentId, String status);
+
+  Future<PaymobCheckoutSession> startPaymobCheckout(String orderId);
 }
 
 class PaymentRemoteDataSourceImpl implements PaymentRemoteDataSource {
   final FirebaseFirestore firestore;
+  final FirebaseFunctions functions;
 
-  PaymentRemoteDataSourceImpl({required this.firestore});
+  PaymentRemoteDataSourceImpl({
+    required this.firestore,
+    required this.functions,
+  });
 
   @override
   Future<PaymentEntity> createPayment(PaymentEntity payment) async {
-    try {
-      final id = const Uuid().v4();
-      final paymentData = {
-        'id': id,
-        'userId': payment.userId,
-        'amount': payment.amount,
-        'status': payment.status,
-        'productId': payment.productId,
-        'paymentMethod': payment.paymentMethod,
-        'createdAt': DateTime.now().toIso8601String(),
-        'completedAt': null,
-      };
-
-      await firestore.collection('payments').doc(id).set(paymentData);
-
-      return PaymentEntity(
-        id: id,
-        userId: payment.userId,
-        amount: payment.amount,
-        status: payment.status,
-        productId: payment.productId,
-        paymentMethod: payment.paymentMethod,
-        createdAt: DateTime.now(),
-      );
-    } catch (e) {
-      throw Exception('Failed to create payment: $e');
-    }
+    throw UnsupportedError(
+      'Direct payment writes are disabled. Use startPaymobCheckout instead.',
+    );
   }
 
   @override
@@ -65,10 +48,8 @@ class PaymentRemoteDataSourceImpl implements PaymentRemoteDataSource {
         status: data['status'] as String,
         productId: data['productId'] as String?,
         paymentMethod: data['paymentMethod'] as String,
-        createdAt: DateTime.parse(data['createdAt'] as String),
-        completedAt: data['completedAt'] != null
-            ? DateTime.parse(data['completedAt'] as String)
-            : null,
+        createdAt: _readDate(data['createdAt']) ?? DateTime.now(),
+        completedAt: _readDate(data['completedAt']),
       );
     } catch (e) {
       throw Exception('Failed to get payment: $e');
@@ -82,6 +63,7 @@ class PaymentRemoteDataSourceImpl implements PaymentRemoteDataSource {
           .collection('payments')
           .where('userId', isEqualTo: userId)
           .orderBy('createdAt', descending: true)
+          .limit(25)
           .get();
 
       return snapshot.docs.map((doc) {
@@ -93,10 +75,8 @@ class PaymentRemoteDataSourceImpl implements PaymentRemoteDataSource {
           status: data['status'] as String,
           productId: data['productId'] as String?,
           paymentMethod: data['paymentMethod'] as String,
-          createdAt: DateTime.parse(data['createdAt'] as String),
-          completedAt: data['completedAt'] != null
-              ? DateTime.parse(data['completedAt'] as String)
-              : null,
+          createdAt: _readDate(data['createdAt']) ?? DateTime.now(),
+          completedAt: _readDate(data['completedAt']),
         );
       }).toList();
     } catch (e) {
@@ -106,13 +86,30 @@ class PaymentRemoteDataSourceImpl implements PaymentRemoteDataSource {
 
   @override
   Future<void> updatePaymentStatus(String paymentId, String status) async {
+    throw UnsupportedError(
+      'Direct payment status updates are disabled. Paymob webhooks update payment status.',
+    );
+  }
+
+  @override
+  Future<PaymobCheckoutSession> startPaymobCheckout(String orderId) async {
     try {
-      await firestore.collection('payments').doc(paymentId).update({
-        'status': status,
-        'completedAt': status == 'completed' ? DateTime.now().toIso8601String() : null,
+      final callable = functions.httpsCallable('createPaymobPayment');
+      final response = await callable.call<Map<String, dynamic>>({
+        'orderId': orderId,
       });
+      return PaymobCheckoutSession.fromMap(
+        Map<String, dynamic>.from(response.data),
+      );
     } catch (e) {
-      throw Exception('Failed to update payment status: $e');
+      throw Exception('Failed to start Paymob checkout: $e');
     }
   }
+}
+
+DateTime? _readDate(dynamic value) {
+  if (value is Timestamp) return value.toDate();
+  if (value is DateTime) return value;
+  if (value is String) return DateTime.tryParse(value);
+  return null;
 }

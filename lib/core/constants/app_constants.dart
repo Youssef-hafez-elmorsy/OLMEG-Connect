@@ -19,4 +19,11 @@ class AppConstants {
   static const String productImagesPath = 'product_images';
   static const String userAvatarsPath = 'user_avatars';
   static const String postImagesPath = 'post_images';
+
+  static const String appWebBaseUrl = 'https://olmeg-connect.web.app';
+
+  static String postShareUrl(String postId) => '$appWebBaseUrl/posts/$postId';
+  static String productShareUrl(String productId) =>
+      '$appWebBaseUrl/#/product/$productId';
+  static String feedShareUrl() => '$appWebBaseUrl/#/home';
 }

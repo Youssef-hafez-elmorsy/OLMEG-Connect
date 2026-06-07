@@ -21,15 +21,25 @@ class BottomActionBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: isDark ? AppColors.surface : AppColors.surfaceLight,
         border: showDivider
-            ? const Border(
-                top: BorderSide(color: AppColors.divider),
+            ? Border(
+                top: BorderSide(
+                  color: isDark ? AppColors.divider : AppColors.dividerLight,
+                ),
               )
             : null,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.28 : 0.10),
+            blurRadius: 22,
+            offset: const Offset(0, -10),
+          ),
+        ],
       ),
       child: SafeArea(
         top: false,
@@ -79,6 +89,15 @@ class _ActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDisabled = onTap == null || isLoading;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final outlineColor =
+        isDisabled ? AppColors.textSecondary : AppColors.primary;
+    final textColor = isPrimary
+        ? AppColors.background
+        : isDark
+            ? AppColors.textPrimary
+            : AppColors.textPrimaryLight;
     return GestureDetector(
       onTap: isLoading ? null : onTap,
       child: Container(
@@ -86,10 +105,14 @@ class _ActionButton extends StatelessWidget {
           vertical: AppSpacing.md,
         ),
         decoration: BoxDecoration(
-          color: isPrimary ? AppColors.primary : Colors.transparent,
-          borderRadius: BorderRadius.circular(AppRadius.md),
+          color: isDisabled
+              ? AppColors.textSecondary.withValues(alpha: 0.18)
+              : isPrimary
+                  ? AppColors.primary
+                  : AppColors.primary.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
           border: Border.all(
-            color: AppColors.primary,
+            color: outlineColor.withValues(alpha: isDisabled ? 0.40 : 1),
             width: 2,
           ),
         ),
@@ -102,26 +125,20 @@ class _ActionButton extends StatelessWidget {
                 height: 20,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: isPrimary
-                      ? AppColors.background
-                      : AppColors.primary,
+                  color: isPrimary ? AppColors.background : outlineColor,
                 ),
               )
             else
               Icon(
                 icon,
                 size: 20,
-                color: isPrimary
-                    ? AppColors.background
-                    : AppColors.primary,
+                color: isDisabled ? AppColors.textSecondary : textColor,
               ),
             const SizedBox(width: AppSpacing.sm),
             Text(
               label,
               style: TextStyle(
-                color: isPrimary
-                    ? AppColors.background
-                    : AppColors.primary,
+                color: isDisabled ? AppColors.textSecondary : textColor,
                 fontWeight: FontWeight.w600,
                 fontSize: 16,
               ),
@@ -133,13 +150,14 @@ class _ActionButton extends StatelessWidget {
   }
 }
 
-class FloatingActionButton_ extends StatelessWidget {
+class AppFloatingActionButton extends StatelessWidget {
   final VoidCallback? onTap;
   final IconData icon;
   final String? label;
   final bool isLoading;
 
-  const FloatingActionButton_({super.key, 
+  const AppFloatingActionButton({
+    super.key,
     this.onTap,
     this.icon = Icons.add,
     this.label,

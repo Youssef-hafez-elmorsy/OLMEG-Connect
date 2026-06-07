@@ -3,78 +3,16 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:olmeg_connect/core/localization/app_localizations.dart';
+import 'package:olmeg_connect/core/theme/app_theme.dart';
 import 'package:olmeg_connect/core/utils/currency_formatter.dart';
-
-class CartItem {
-  final String id;
-  final String title;
-  final double price;
-  final String imageUrl;
-  final String sellerId;
-  final String sellerName;
-  int quantity;
-
-  CartItem({
-    required this.id,
-    required this.title,
-    required this.price,
-    required this.imageUrl,
-    required this.sellerId,
-    required this.sellerName,
-    this.quantity = 1,
-  });
-}
-
-class CartNotifier extends Notifier<List<CartItem>> {
-  @override
-  List<CartItem> build() => [];
-
-  void addItem(CartItem item) {
-    final existing = state.firstWhere(
-      (i) => i.id == item.id,
-      orElse: () => CartItem(
-        id: '',
-        title: '',
-        price: 0,
-        imageUrl: '',
-        sellerId: '',
-        sellerName: '',
-      ),
-    );
-
-    if (existing.id.isNotEmpty) {
-      state = [
-        for (final i in state)
-          if (i.id == item.id) i..quantity += item.quantity else i,
-      ];
-    } else {
-      state = [...state, item];
-    }
-  }
-
-  void removeItem(String itemId) {
-    state = state.where((i) => i.id != itemId).toList();
-  }
-
-  void updateQuantity(String itemId, int quantity) {
-    if (quantity <= 0) {
-      removeItem(itemId);
-    } else {
-      state = [
-        for (final i in state)
-          if (i.id == itemId) i..quantity = quantity else i,
-      ];
-    }
-  }
-
-  void clear() {
-    state = [];
-  }
-}
-
-final cartProvider = NotifierProvider<CartNotifier, List<CartItem>>(() {
-  return CartNotifier();
-});
+import 'package:olmeg_connect/core/widgets/buyer_experience_widgets.dart';
+import 'package:olmeg_connect/features/cart/domain/entities/cart_item.dart';
+import 'package:olmeg_connect/features/cart/presentation/providers/local_cart_provider.dart';
+import 'package:olmeg_connect/features/products/domain/entities/product_entity.dart';
+import 'package:olmeg_connect/features/products/presentation/providers/product_discovery_provider.dart';
+import 'package:olmeg_connect/features/products/presentation/widgets/product_card.dart';
 
 class CartScreen extends ConsumerWidget {
   const CartScreen({super.key});
@@ -82,14 +20,17 @@ class CartScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final cartItems = ref.watch(cartProvider);
+    final totals = ref.watch(cartTotalsProvider);
+    final validationMessages = ref.watch(cartValidationProvider);
+    final conflictMessages = ref.watch(cartConflictProvider);
+    final recommendations = ref.watch(topRatedProductsProvider);
     final colorScheme = Theme.of(context).colorScheme;
-
-    double total =
-        cartItems.fold(0, (sum, item) => sum + (item.price * item.quantity));
+    final activeItems = cartItems.where((item) => !item.savedForLater).toList();
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Cart'),
+        title: Text(l10n.t('myCart')),
         actions: [
           if (cartItems.isNotEmpty)
             IconButton(
@@ -99,24 +40,31 @@ class CartScreen extends ConsumerWidget {
         ],
       ),
       body: cartItems.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.shopping_cart_outlined,
-                      size: 64, color: colorScheme.outline),
-                  const SizedBox(height: 16),
-                  Text('Your cart is empty',
-                      style: TextStyle(color: colorScheme.outline)),
-                ],
+          ? Padding(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: Center(
+                child: BuyerHeroPanel(
+                  eyebrow: l10n.t('cart'),
+                  title: l10n.t('cartEmptyTitle'),
+                  message: l10n.t('cartEmptyMessage'),
+                  icon: Icons.shopping_cart_outlined,
+                  action: FilledButton.icon(
+                    onPressed: () => context.go('/home'),
+                    icon: const Icon(Icons.storefront_outlined),
+                    label: Text(l10n.t('browseMarketplace')),
+                  ),
+                ),
               ),
             )
           : Column(
               children: [
                 Expanded(
                   child: ListView.builder(
-                    itemCount: cartItems.length,
+                    itemCount: cartItems.length + 1,
                     itemBuilder: (context, index) {
+                      if (index == cartItems.length) {
+                        return _CartRecommendations(products: recommendations);
+                      }
                       final item = cartItems[index];
                       return _CartItemCard(
                         item: item,
@@ -125,6 +73,9 @@ class CartScreen extends ConsumerWidget {
                         onQuantityChanged: (q) => ref
                             .read(cartProvider.notifier)
                             .updateQuantity(item.id, q),
+                        onSaveForLater: () => ref
+                            .read(cartProvider.notifier)
+                            .toggleSaveForLater(item.id),
                       );
                     },
                   ),
@@ -143,29 +94,65 @@ class CartScreen extends ConsumerWidget {
                   ),
                   child: SafeArea(
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        BuyerSectionHeader(
+                          title: l10n.t('cartSummary'),
+                          subtitle: l10n.activeItemsReady(activeItems.length),
+                        ),
+                        const SizedBox(height: AppSpacing.md),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text('Total:'),
-                            Text(CurrencyFormatter.egp(total),
+                            Text(l10n.t('subtotal')),
+                            Text(CurrencyFormatter.egp(totals.subtotal),
                                 style: const TextStyle(
                                     fontSize: 20, fontWeight: FontWeight.bold)),
                           ],
                         ),
+                        if (validationMessages.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          for (final message in validationMessages)
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                message,
+                                style: TextStyle(
+                                  color: colorScheme.error,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                        ],
+                        conflictMessages.when(
+                          loading: () => const SizedBox.shrink(),
+                          error: (_, __) => const SizedBox.shrink(),
+                          data: (messages) => Column(
+                            children: [
+                              for (final message in messages)
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    message,
+                                    style: TextStyle(
+                                      color: colorScheme.error,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
                         const SizedBox(height: 16),
                         SizedBox(
                           width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: () {
-                              // Checkout
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: colorScheme.primary,
-                              foregroundColor: colorScheme.onPrimary,
-                              padding: const EdgeInsets.all(16),
-                            ),
-                            child: const Text('Checkout'),
+                          child: FilledButton.icon(
+                            onPressed: activeItems.isEmpty ||
+                                    validationMessages.isNotEmpty
+                                ? null
+                                : () => context.push('/checkout'),
+                            icon: const Icon(Icons.lock_outline),
+                            label: Text(l10n.t('reviewCheckoutSecurely')),
                           ),
                         ),
                       ],
@@ -178,20 +165,63 @@ class CartScreen extends ConsumerWidget {
   }
 }
 
+class _CartRecommendations extends StatelessWidget {
+  final AsyncValue<List<ProductEntity>> products;
+
+  const _CartRecommendations({required this.products});
+
+  @override
+  Widget build(BuildContext context) {
+    return products.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (items) {
+        if (items.isEmpty) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(AppLocalizations.of(context).t('recommendedAddOns'),
+                  style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 245,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: items.take(6).length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 12),
+                  itemBuilder: (context, index) => SizedBox(
+                    width: 168,
+                    child: ProductCard(product: items[index]),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
 class _CartItemCard extends StatelessWidget {
   final CartItem item;
   final VoidCallback onRemove;
   final Function(int) onQuantityChanged;
+  final VoidCallback onSaveForLater;
 
   const _CartItemCard({
     required this.item,
     required this.onRemove,
     required this.onQuantityChanged,
+    required this.onSaveForLater,
   });
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context);
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -220,13 +250,32 @@ class _CartItemCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(fontWeight: FontWeight.w600)),
                   const SizedBox(height: 4),
-                  Text('Seller: ${item.sellerName}',
+                  Text(l10n.sellerName(item.sellerName),
                       style: TextStyle(color: Colors.grey[600], fontSize: 12)),
                   const SizedBox(height: 4),
                   Text(CurrencyFormatter.egp(item.price),
                       style: TextStyle(
                           color: colorScheme.primary,
                           fontWeight: FontWeight.bold)),
+                  if (item.selectedVariant != null) ...[
+                    const SizedBox(height: 4),
+                    Text(l10n.variantName(item.selectedVariant!),
+                        style:
+                            TextStyle(color: Colors.grey[600], fontSize: 12)),
+                  ],
+                  if (!item.isAvailable || !item.hasValidQuantity) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      item.isAvailable
+                          ? l10n.onlyAvailable(item.stockQuantity)
+                          : l10n.t('outOfStock'),
+                      style: TextStyle(
+                        color: colorScheme.error,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 8),
                   Row(
                     children: [
@@ -238,7 +287,9 @@ class _CartItemCard extends StatelessWidget {
                       Text('${item.quantity}'),
                       IconButton(
                         icon: const Icon(Icons.add),
-                        onPressed: () => onQuantityChanged(item.quantity + 1),
+                        onPressed: item.quantity >= item.stockQuantity
+                            ? null
+                            : () => onQuantityChanged(item.quantity + 1),
                         iconSize: 20,
                       ),
                       const Spacer(),
@@ -247,6 +298,17 @@ class _CartItemCard extends StatelessWidget {
                         onPressed: onRemove,
                       ),
                     ],
+                  ),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton(
+                      onPressed: onSaveForLater,
+                      child: Text(
+                        item.savedForLater
+                            ? l10n.t('moveToCart')
+                            : l10n.t('saveForLater'),
+                      ),
+                    ),
                   ),
                 ],
               ),

@@ -7,6 +7,9 @@ class SearchFilterEntity extends Equatable {
   final String? category;
   final String? condition;
   final String? location;
+  final double? minRating;
+  final bool? onlyAvailable;
+  final String? sellerId;
   final String sortBy;
 
   const SearchFilterEntity({
@@ -16,6 +19,9 @@ class SearchFilterEntity extends Equatable {
     this.category,
     this.condition,
     this.location,
+    this.minRating,
+    this.onlyAvailable,
+    this.sellerId,
     this.sortBy = 'newest',
   });
 
@@ -27,6 +33,9 @@ class SearchFilterEntity extends Equatable {
         category,
         condition,
         location,
+        minRating,
+        onlyAvailable,
+        sellerId,
         sortBy,
       ];
 
@@ -37,6 +46,9 @@ class SearchFilterEntity extends Equatable {
     String? category,
     String? condition,
     String? location,
+    double? minRating,
+    bool? onlyAvailable,
+    String? sellerId,
     String? sortBy,
   }) {
     return SearchFilterEntity(
@@ -46,6 +58,9 @@ class SearchFilterEntity extends Equatable {
       category: category ?? this.category,
       condition: condition ?? this.condition,
       location: location ?? this.location,
+      minRating: minRating ?? this.minRating,
+      onlyAvailable: onlyAvailable ?? this.onlyAvailable,
+      sellerId: sellerId ?? this.sellerId,
       sortBy: sortBy ?? this.sortBy,
     );
   }

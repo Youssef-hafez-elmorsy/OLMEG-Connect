@@ -28,7 +28,7 @@ final averageRatingProvider = FutureProvider.family<double, String>(
     final result = await repository.getAverageRating(userId);
     return result.fold(
       (failure) => 0.0,
-      (average) => average,
+      (ratingAverage) => ratingAverage,
     );
   },
 );

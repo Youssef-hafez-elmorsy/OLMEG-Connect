@@ -22,6 +22,7 @@ abstract class ChatRemoteDataSource {
       required String senderId,
       required String senderName,
       required String content});
+  Future<void> hideChatForUser(String chatId, String userId);
 }
 
 class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
@@ -37,12 +38,15 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
 
   @override
   Stream<List<ChatModel>> getChats(String userId) {
-    // Simple query - get all chats and filter by participants
-    return _col.orderBy('updatedAt', descending: true).snapshots().map((s) => s
-        .docs
-        .map((d) => ChatModel.fromFirestore(d))
-        .where((chat) => chat.participants.contains(userId))
-        .toList());
+    return _col
+        .where('participants', arrayContains: userId)
+        .orderBy('updatedAt', descending: true)
+        .limit(80)
+        .snapshots()
+        .map((s) => s.docs
+            .map((d) => ChatModel.fromFirestore(d))
+            .where((chat) => !chat.hiddenFor.contains(userId))
+            .toList());
   }
 
   @override
@@ -102,6 +106,7 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
       sellerName: sellerName,
       messages: [],
       participants: [buyerId, sellerId],
+      hiddenFor: const [],
       createdAt: now,
       updatedAt: now,
     );
@@ -128,6 +133,15 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
     await _col.doc(chatId).update({
       'messages': FieldValue.arrayUnion([message]),
       'updatedAt': DateTime.now(),
+      'hiddenFor': FieldValue.arrayRemove([senderId]),
     });
+  }
+
+  @override
+  Future<void> hideChatForUser(String chatId, String userId) async {
+    await _col.doc(chatId).set({
+      'hiddenFor': FieldValue.arrayUnion([userId]),
+      'updatedAt': DateTime.now(),
+    }, SetOptions(merge: true));
   }
 }

@@ -63,4 +63,3 @@ class SearchRepositoryImpl implements SearchRepository {
     }
   }
 }
-

@@ -6,6 +6,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:olmeg_connect/core/localization/app_localizations.dart';
 import 'package:olmeg_connect/core/router/app_router.dart';
 import 'package:olmeg_connect/core/theme/app_theme.dart';
+import 'package:olmeg_connect/core/services/app_error_reporter.dart';
 import 'package:olmeg_connect/firebase_options.dart';
 import 'package:olmeg_connect/features/settings/providers/settings_provider.dart';
 import 'package:olmeg_connect/core/services/notification_service.dart';
@@ -20,6 +21,7 @@ Future<void> main() async {
       // Running in web mode without Firebase
     }
   }
+  AppErrorReporter.install();
 
   runApp(const ProviderScope(child: OlmegConnectApp()));
 }

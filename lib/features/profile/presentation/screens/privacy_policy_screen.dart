@@ -6,13 +6,18 @@ class PrivacyPolicyScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final backgroundColor = AppColors.getBackground(isDark);
+    final textColor = AppColors.getTextPrimary(isDark);
+    final secondaryColor = AppColors.getTextSecondary(isDark);
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        backgroundColor: AppColors.background,
+        backgroundColor: backgroundColor,
         title: const Text('Privacy Policy'),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+          icon: Icon(Icons.arrow_back, color: textColor),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -21,18 +26,18 @@ class PrivacyPolicyScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSection('1. Data We Collect', [
+            _buildSection(context, '1. Data We Collect', [
               'Personal Data: Name, email, phone number, profile information',
               'User Content: Product listings (images, descriptions, prices)',
               'Device & Usage Data: Device type, IP address, logs, app interactions',
               'Payment Data: Processed by secure third-party providers. We do not store card details.',
             ]),
-            _buildSection('2. Legal Basis (GDPR)', [
+            _buildSection(context, '2. Legal Basis (GDPR)', [
               'Contract: To provide the app services',
               'Legitimate Interest: Security, fraud prevention, AI moderation',
               'Consent: Marketing notifications, optional data',
             ]),
-            _buildSection('3. How We Use Data', [
+            _buildSection(context, '3. How We Use Data', [
               'Account creation & management',
               'Marketplace operations (buy/sell)',
               'AI moderation of listings',
@@ -40,22 +45,22 @@ class PrivacyPolicyScreen extends StatelessWidget {
               'Notifications',
               'Fraud prevention',
             ]),
-            _buildSection('4. Data Sharing', [
+            _buildSection(context, '4. Data Sharing', [
               'Firebase (Google services)',
               'Payment providers',
               'Analytics services',
               'Authorities when legally required',
               'We never sell your data.',
             ]),
-            _buildSection('5. International Transfers', [
+            _buildSection(context, '5. International Transfers', [
               'Your data may be processed outside your country via Firebase servers. We ensure appropriate safeguards.',
             ]),
-            _buildSection('6. Data Retention', [
+            _buildSection(context, '6. Data Retention', [
               'As long as your account is active',
               'Or as required by law',
               'Deleted upon request (unless legally required)',
             ]),
-            _buildSection('7. Your Rights', [
+            _buildSection(context, '7. Your Rights', [
               'Access your data',
               'Correct inaccurate data',
               'Request deletion (Right to be forgotten)',
@@ -63,12 +68,12 @@ class PrivacyPolicyScreen extends StatelessWidget {
               'Withdraw consent',
               'Contact: olmegconnect@gmail.com',
             ]),
-            _buildSection('8. Security', [
+            _buildSection(context, '8. Security', [
               'Firebase secure infrastructure',
               'Encryption',
               'Access controls',
             ]),
-            _buildSection('9. Google Play Compliance', [
+            _buildSection(context, '9. Google Play Compliance', [
               'We only collect necessary data',
               'Provide clear disclosure before collection',
               'Use data only for stated purposes',
@@ -78,7 +83,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
             Center(
               child: Text(
                 'Effective Date: ${DateTime.now().year}',
-                style: const TextStyle(color: AppColors.textSecondary),
+                style: TextStyle(color: secondaryColor),
               ),
             ),
           ],
@@ -87,7 +92,12 @@ class PrivacyPolicyScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSection(String title, List<String> points) {
+  Widget _buildSection(
+      BuildContext context, String title, List<String> points) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = AppColors.getTextPrimary(isDark);
+    final secondaryColor = AppColors.getTextSecondary(isDark);
+
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.lg),
       child: Column(
@@ -107,9 +117,9 @@ class PrivacyPolicyScreen extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('• ', style: TextStyle(color: AppColors.textSecondary)),
+                    Text('• ', style: TextStyle(color: secondaryColor)),
                     Expanded(
-                      child: Text(p, style: const TextStyle(color: AppColors.textPrimary)),
+                      child: Text(p, style: TextStyle(color: textColor)),
                     ),
                   ],
                 ),

@@ -24,7 +24,9 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.search),
-            onPressed: () {},
+            onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Search is available from the main marketplace search screen.')),
+            ),
             tooltip: 'Search',
           ),
         ],
@@ -109,7 +111,9 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
             final product = filteredProducts[index];
             return ProductCard(
               product: product,
-              onFavorite: () {},
+              onFavorite: () => ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Favorites are not wired in this legacy hook screen.')),
+              ),
             );
           },
         );

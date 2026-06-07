@@ -11,7 +11,8 @@ import '../../domain/repositories/product_repository.dart';
 import '../../domain/usecases/product_usecases.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
-final productRemoteDataSourceProvider = Provider<ProductRemoteDataSource>((ref) {
+final productRemoteDataSourceProvider =
+    Provider<ProductRemoteDataSource>((ref) {
   return ProductRemoteDataSourceImpl(
     firestore: FirebaseFirestore.instance,
     storage: FirebaseStorage.instance,
@@ -22,10 +23,14 @@ final productRepositoryProvider = Provider<ProductRepository>((ref) {
   return ProductRepositoryImpl(ref.watch(productRemoteDataSourceProvider));
 });
 
-final getProductsUseCaseProvider = Provider((ref) => GetProductsUseCase(ref.watch(productRepositoryProvider)));
-final getUserProductsUseCaseProvider = Provider((ref) => GetUserProductsUseCase(ref.watch(productRepositoryProvider)));
-final addProductUseCaseProvider = Provider((ref) => AddProductUseCase(ref.watch(productRepositoryProvider)));
-final deleteProductUseCaseProvider = Provider((ref) => DeleteProductUseCase(ref.watch(productRepositoryProvider)));
+final getProductsUseCaseProvider =
+    Provider((ref) => GetProductsUseCase(ref.watch(productRepositoryProvider)));
+final getUserProductsUseCaseProvider = Provider(
+    (ref) => GetUserProductsUseCase(ref.watch(productRepositoryProvider)));
+final addProductUseCaseProvider =
+    Provider((ref) => AddProductUseCase(ref.watch(productRepositoryProvider)));
+final deleteProductUseCaseProvider = Provider(
+    (ref) => DeleteProductUseCase(ref.watch(productRepositoryProvider)));
 
 class CategoryNotifier extends Notifier<String> {
   @override
@@ -40,12 +45,23 @@ final selectedCategoryProvider = NotifierProvider<CategoryNotifier, String>(() {
   return CategoryNotifier();
 });
 
-final productsStreamProvider = StreamProvider.family<List<ProductEntity>, String?>((ref, categoryId) {
+final productsStreamProvider =
+    StreamProvider.family<List<ProductEntity>, String?>((ref, categoryId) {
   final useCase = ref.watch(getProductsUseCaseProvider);
   return useCase(categoryId: categoryId);
 });
 
-final userProductsStreamProvider = StreamProvider.family<List<ProductEntity>, String>((ref, userId) {
+final productByIdProvider =
+    FutureProvider.family<ProductEntity?, String>((ref, productId) async {
+  try {
+    return ref.watch(productRemoteDataSourceProvider).getProductById(productId);
+  } catch (_) {
+    return null;
+  }
+});
+
+final userProductsStreamProvider =
+    StreamProvider.family<List<ProductEntity>, String>((ref, userId) {
   return ref.watch(getUserProductsUseCaseProvider)(userId);
 });
 
@@ -79,7 +95,8 @@ class AddProductNotifier extends Notifier<AsyncValue<void>> {
       sellerName: user.name,
       createdAt: DateTime.now(),
     );
-    final result = await addProductUseCase(product: product, imageFile: imageFile, imageBytes: imageBytes);
+    final result = await addProductUseCase(
+        product: product, imageFile: imageFile, imageBytes: imageBytes);
     return result.fold(
       (failure) {
         state = const AsyncValue.data(null);
@@ -93,7 +110,8 @@ class AddProductNotifier extends Notifier<AsyncValue<void>> {
   }
 }
 
-final addProductNotifierProvider = NotifierProvider<AddProductNotifier, AsyncValue<void>>(() {
+final addProductNotifierProvider =
+    NotifierProvider<AddProductNotifier, AsyncValue<void>>(() {
   return AddProductNotifier();
 });
 
@@ -107,7 +125,8 @@ class FavoriteNotifier extends Notifier<AsyncValue<void>> {
       if (user == null) return;
 
       final firestore = FirebaseFirestore.instance;
-      final favoriteRef = firestore.collection('favorites').doc('${user.id}_$productId');
+      final favoriteRef =
+          firestore.collection('favorites').doc('${user.id}_$productId');
 
       final doc = await favoriteRef.get();
       if (doc.exists) {
@@ -125,6 +144,7 @@ class FavoriteNotifier extends Notifier<AsyncValue<void>> {
   }
 }
 
-final favoriteNotifierProvider = NotifierProvider<FavoriteNotifier, AsyncValue<void>>(() {
+final favoriteNotifierProvider =
+    NotifierProvider<FavoriteNotifier, AsyncValue<void>>(() {
   return FavoriteNotifier();
 });

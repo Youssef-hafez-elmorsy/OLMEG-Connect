@@ -1,12 +1,13 @@
 import 'dart:convert';
-import 'dart:typed_data';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+import 'package:olmeg_connect/core/localization/app_localizations.dart';
 import 'package:olmeg_connect/core/theme/app_theme.dart';
 import 'package:olmeg_connect/features/auth/presentation/providers/auth_provider.dart';
 
@@ -21,8 +22,11 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _bioController = TextEditingController();
-  XFile? _selectedImage;
+  final _formKey = GlobalKey<FormState>();
+
   Uint8List? _selectedImageBytes;
+  String? _currentPhotoUrl;
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -31,6 +35,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     if (user != null) {
       _nameController.text = user.name;
       _emailController.text = user.email;
+      _currentPhotoUrl = user.photoUrl;
+      _loadProfileExtras(user.id);
     }
   }
 
@@ -42,298 +48,151 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     super.dispose();
   }
 
+  Future<void> _loadProfileExtras(String userId) async {
+    final doc =
+        await FirebaseFirestore.instance.collection('users').doc(userId).get();
+    if (!mounted) return;
+    final data = doc.data();
+    _bioController.text = data?['bio'] as String? ?? '';
+    setState(() {
+      _currentPhotoUrl = data?['photoUrl'] as String? ?? _currentPhotoUrl;
+    });
+  }
+
   Future<void> _pickImage() async {
     final picker = ImagePicker();
-    final image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
-    if (image != null) {
-      final bytes = await image.readAsBytes();
-      setState(() {
-        _selectedImage = image;
-        _selectedImageBytes = bytes;
-      });
-    }
+    final image = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 60,
+      maxWidth: 420,
+      maxHeight: 420,
+    );
+    if (image == null) return;
+    final bytes = await image.readAsBytes();
+    if (!mounted) return;
+    setState(() => _selectedImageBytes = bytes);
   }
 
   @override
   Widget build(BuildContext context) {
-    final user = ref.watch(authStateProvider).value;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? const Color(0xFF0F172A) : const Color(0xFFF5F5F7);
-    final surfaceColor = isDark ? const Color(0xFF1E293B) : const Color(0xFFFFFFFF);
-    final textColor = isDark ? const Color(0xFFF8FAFC) : const Color(0xFF1E293B);
-    final secColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
-    final dividerColor = isDark ? const Color(0xFF475569) : const Color(0xFFE2E8F0);
+    final bgColor = isDark ? const Color(0xFF0F172A) : const Color(0xFFF7F8FA);
+    final surfaceColor = isDark ? const Color(0xFF182235) : Colors.white;
+    final textColor =
+        isDark ? const Color(0xFFF8FAFC) : const Color(0xFF111827);
+    final secColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF6B7280);
+    final dividerColor =
+        isDark ? const Color(0xFF334155) : const Color(0xFFE5E7EB);
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
       backgroundColor: bgColor,
       appBar: AppBar(
         backgroundColor: bgColor,
-        title: Text('Edit Profile', style: TextStyle(color: textColor)),
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: textColor),
-          onPressed: () => Navigator.pop(context),
-        ),
+        title: Text(l10n.t('editProfile'), style: TextStyle(color: textColor)),
+        actions: [
+          TextButton(
+            onPressed: _isSaving ? null : () => _saveProfile(context),
+            child: _isSaving
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Text(l10n.t('save')),
+          ),
+        ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
+      body: Form(
+        key: _formKey,
+        child: ListView(
+          padding: const EdgeInsets.all(AppSpacing.lg),
           children: [
-            // Profile Picture Section
+            _ProfilePhotoCard(
+              surfaceColor: surfaceColor,
+              dividerColor: dividerColor,
+              textColor: textColor,
+              secColor: secColor,
+              selectedImageBytes: _selectedImageBytes,
+              photoUrl: _currentPhotoUrl,
+              name: _nameController.text,
+              onPickImage: _pickImage,
+              onRemoveImage:
+                  _currentPhotoUrl == null && _selectedImageBytes == null
+                      ? null
+                      : () => setState(() {
+                            _selectedImageBytes = null;
+                            _currentPhotoUrl = null;
+                          }),
+            ),
+            const SizedBox(height: AppSpacing.lg),
             Container(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(AppSpacing.lg),
               decoration: BoxDecoration(
                 color: surfaceColor,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(AppRadius.lg),
                 border: Border.all(color: dividerColor),
               ),
               child: Column(
                 children: [
-                  // Circular Profile Picture
-                  Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      GestureDetector(
-                        onTap: _pickImage,
-                        child: Container(
-                          width: 140,
-                          height: 140,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: AppColors.primary.withValues(alpha: 0.1),
-                            border: Border.all(
-                              color: AppColors.primary,
-                              width: 3,
-                            ),
-                          ),
-                          child: ClipOval(
-                            child: _selectedImageBytes != null
-                                ? Image.memory(
-                                    _selectedImageBytes!,
-                                    fit: BoxFit.cover,
-                                    width: 140,
-                                    height: 140,
-                                  )
-                                : _buildDefaultAvatar(),
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: GestureDetector(
-                          onTap: _pickImage,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: AppColors.primary,
-                              border: Border.all(color: surfaceColor, width: 4),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppColors.primary.withValues(alpha: 0.3),
-                                  blurRadius: 8,
-                                  spreadRadius: 2,
-                                ),
-                              ],
-                            ),
-                            padding: const EdgeInsets.all(12),
-                            child: const Icon(
-                              Icons.camera_alt,
-                              color: Colors.white,
-                              size: 24,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                  TextFormField(
+                    controller: _nameController,
+                    style: TextStyle(color: textColor),
+                    textInputAction: TextInputAction.next,
+                    decoration: _fieldDecoration(
+                      label: l10n.t('fullName'),
+                      icon: Icons.person_outline,
+                      secColor: secColor,
+                      dividerColor: dividerColor,
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Name is required';
+                      }
+                      return null;
+                    },
+                    onChanged: (_) => setState(() {}),
                   ),
-                  const SizedBox(height: 24),
-                  // Change Profile Picture Button - LARGE AND PROMINENT
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: _pickImage,
-                      icon: const Icon(Icons.camera_alt, size: 24),
-                      label: const Text(
-                        'Change Profile Picture',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 16,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 4,
-                      ),
+                  const SizedBox(height: AppSpacing.md),
+                  TextFormField(
+                    controller: _emailController,
+                    enabled: false,
+                    style: TextStyle(color: textColor),
+                    decoration: _fieldDecoration(
+                      label: 'Email',
+                      icon: Icons.email_outlined,
+                      secColor: secColor,
+                      dividerColor: dividerColor,
                     ),
                   ),
-                  const SizedBox(height: 24),
-                  // Suggested Photos
-                  Text(
-                    'Suggested Photos',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: textColor,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    height: 100,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: 4,
-                      separatorBuilder: (_, __) => const SizedBox(width: 12),
-                      itemBuilder: (_, index) => GestureDetector(
-                        onTap: () {
-                          // Handle suggested photo selection
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Photo ${index + 1} selected'),
-                              duration: const Duration(seconds: 1),
-                            ),
-                          );
-                        },
-                        child: Container(
-                          width: 100,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: AppColors.primary.withValues(alpha: 0.5),
-                              width: 2,
-                            ),
-                            color: AppColors.primary.withValues(alpha: 0.05),
-                          ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.image_outlined,
-                                color: AppColors.primary,
-                                size: 32,
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Photo ${index + 1}',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
+                  const SizedBox(height: AppSpacing.md),
+                  TextFormField(
+                    controller: _bioController,
+                    style: TextStyle(color: textColor),
+                    minLines: 3,
+                    maxLines: 5,
+                    maxLength: 160,
+                    decoration: _fieldDecoration(
+                      label: l10n.t('bio'),
+                      icon: Icons.notes_outlined,
+                      secColor: secColor,
+                      dividerColor: dividerColor,
+                    ).copyWith(hintText: l10n.t('profilePhotoHelp')),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 24),
-            // Edit Form Section
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: surfaceColor,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: dividerColor),
-              ),
-              child: Column(
-                children: [
-                  TextField(
-                    controller: _nameController,
-                    style: TextStyle(color: textColor),
-                    decoration: InputDecoration(
-                      labelText: 'Full Name',
-                      labelStyle: TextStyle(color: secColor),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: dividerColor),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: dividerColor),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: AppColors.primary, width: 2),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: _emailController,
-                    style: TextStyle(color: textColor),
-                    enabled: false,
-                    decoration: InputDecoration(
-                      labelText: 'Email',
-                      labelStyle: TextStyle(color: secColor),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: dividerColor),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: dividerColor),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: _bioController,
-                    style: TextStyle(color: textColor),
-                    maxLines: 3,
-                    decoration: InputDecoration(
-                      labelText: 'Bio',
-                      labelStyle: TextStyle(color: secColor),
-                      hintText: 'Tell us about yourself',
-                      hintStyle: TextStyle(color: secColor.withValues(alpha: 0.5)),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: dividerColor),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: dividerColor),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: AppColors.primary, width: 2),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () => _saveProfile(context),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text(
-                        'Save Changes',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+            const SizedBox(height: AppSpacing.lg),
+            FilledButton.icon(
+              onPressed: _isSaving ? null : () => _saveProfile(context),
+              icon: _isSaving
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.check),
+              label: Text(_isSaving ? '${l10n.t('save')}...' : l10n.t('save')),
             ),
           ],
         ),
@@ -341,71 +200,234 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     );
   }
 
+  InputDecoration _fieldDecoration({
+    required String label,
+    required IconData icon,
+    required Color secColor,
+    required Color dividerColor,
+  }) {
+    return InputDecoration(
+      labelText: label,
+      prefixIcon: Icon(icon),
+      labelStyle: TextStyle(color: secColor),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: dividerColor),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.primary, width: 2),
+      ),
+    );
+  }
+
   Future<void> _saveProfile(BuildContext context) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
+    if (!_formKey.currentState!.validate()) return;
+    final authUser = FirebaseAuth.instance.currentUser;
+    if (authUser == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please sign in')),
       );
       return;
     }
 
+    setState(() => _isSaving = true);
     try {
-      String? photoUrl;
-
+      String? photoUrl = _currentPhotoUrl;
       if (_selectedImageBytes != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Uploading image...')),
-        );
-        
-        final bytes = _selectedImageBytes!;
-        
         if (kIsWeb) {
-          final base64 = base64Encode(bytes);
-          photoUrl = 'data:image/jpeg;base64,$base64';
+          photoUrl =
+              'data:image/jpeg;base64,${base64Encode(_selectedImageBytes!)}';
         } else {
-          final ref = FirebaseStorage.instance.ref().child('avatars/${user.uid}.jpg');
+          final ref = FirebaseStorage.instance.ref().child(
+              'avatars/${authUser.uid}_${DateTime.now().millisecondsSinceEpoch}.jpg');
           await ref.putData(
-            bytes,
+            _selectedImageBytes!,
             SettableMetadata(contentType: 'image/jpeg'),
           );
           photoUrl = await ref.getDownloadURL();
         }
       }
 
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
-        'name': _nameController.text.trim(),
-        if (photoUrl != null) 'photoUrl': photoUrl,
-      }, SetOptions(merge: true));
+      final name = _nameController.text.trim();
+      final data = <String, dynamic>{
+        'name': name,
+        'bio': _bioController.text.trim(),
+        'photoUrl': photoUrl,
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+      if (photoUrl == null) {
+        data['photoUrl'] = FieldValue.delete();
+      }
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(authUser.uid)
+          .set(data, SetOptions(merge: true));
+      await authUser.updateDisplayName(name);
+      if (photoUrl == null || !photoUrl.startsWith('data:image')) {
+        await authUser.updatePhotoURL(photoUrl);
+      }
 
       ref.invalidate(authStateProvider);
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile saved! ✓')),
-        );
-        Navigator.pop(context);
-      }
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context).t('profileSaved'))),
+      );
+      Navigator.pop(context);
     } catch (e) {
-      debugPrint('Save profile error: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error saving: $e')),
-        );
-      }
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not save profile: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
     }
   }
+}
 
-  Widget _buildDefaultAvatar() {
+class _ProfilePhotoCard extends StatelessWidget {
+  final Color surfaceColor;
+  final Color dividerColor;
+  final Color textColor;
+  final Color secColor;
+  final Uint8List? selectedImageBytes;
+  final String? photoUrl;
+  final String name;
+  final VoidCallback onPickImage;
+  final VoidCallback? onRemoveImage;
+
+  const _ProfilePhotoCard({
+    required this.surfaceColor,
+    required this.dividerColor,
+    required this.textColor,
+    required this.secColor,
+    required this.selectedImageBytes,
+    required this.photoUrl,
+    required this.name,
+    required this.onPickImage,
+    required this.onRemoveImage,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      width: 140,
-      height: 140,
-      color: AppColors.primary.withValues(alpha: 0.1),
-      child: Icon(
-        Icons.person,
-        size: 70,
-        color: AppColors.primary,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: surfaceColor,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: dividerColor),
+      ),
+      child: Column(
+        children: [
+          Stack(
+            alignment: Alignment.bottomRight,
+            children: [
+              _ProfileImage(
+                bytes: selectedImageBytes,
+                url: photoUrl,
+                name: name,
+                size: 132,
+              ),
+              IconButton.filled(
+                tooltip: 'Change photo',
+                onPressed: onPickImage,
+                icon: const Icon(Icons.camera_alt_outlined),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            AppLocalizations.of(context).t('profilePhoto'),
+            style: TextStyle(
+              color: textColor,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            AppLocalizations.of(context).t('profilePhotoHelp'),
+            textAlign: TextAlign.center,
+            style: TextStyle(color: secColor),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: [
+              OutlinedButton.icon(
+                onPressed: onPickImage,
+                icon: const Icon(Icons.photo_library_outlined),
+                label: Text(AppLocalizations.of(context).t('choosePhoto')),
+              ),
+              if (onRemoveImage != null)
+                TextButton.icon(
+                  onPressed: onRemoveImage,
+                  icon: const Icon(Icons.delete_outline),
+                  label: Text(AppLocalizations.of(context).t('remove')),
+                ),
+            ],
+          ),
+        ],
       ),
     );
+  }
+}
+
+class _ProfileImage extends StatelessWidget {
+  final Uint8List? bytes;
+  final String? url;
+  final String name;
+  final double size;
+
+  const _ProfileImage({
+    required this.bytes,
+    required this.url,
+    required this.name,
+    required this.size,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final image = _imageProvider();
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: AppColors.primary.withValues(alpha: 0.12),
+        border: Border.all(color: AppColors.primary, width: 3),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: image == null
+          ? Center(
+              child: Text(
+                name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : 'U',
+                style: const TextStyle(
+                  color: AppColors.primary,
+                  fontSize: 44,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            )
+          : Image(image: image, fit: BoxFit.cover),
+    );
+  }
+
+  ImageProvider? _imageProvider() {
+    if (bytes != null) return MemoryImage(bytes!);
+    final value = url?.trim();
+    if (value == null || value.isEmpty) return null;
+    if (value.startsWith('data:image')) {
+      try {
+        return MemoryImage(base64Decode(value.split(',').last));
+      } catch (_) {
+        return null;
+      }
+    }
+    return NetworkImage(value);
   }
 }

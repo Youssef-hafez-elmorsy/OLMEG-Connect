@@ -22,14 +22,18 @@ class CategoryFilter extends ConsumerWidget {
           final cat = categories[i];
           final isSelected = cat == selected;
           return GestureDetector(
-            onTap: () => ref.read(selectedCategoryProvider.notifier).selectCategory(cat),
+            onTap: () =>
+                ref.read(selectedCategoryProvider.notifier).selectCategory(cat),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               decoration: BoxDecoration(
                 color: isSelected ? const Color(0xFF6C63FF) : Colors.white,
                 borderRadius: BorderRadius.circular(22),
-                border: Border.all(color: isSelected ? const Color(0xFF6C63FF) : Colors.grey.shade300),
+                border: Border.all(
+                    color: isSelected
+                        ? const Color(0xFF6C63FF)
+                        : Colors.grey.shade300),
               ),
               child: Text(
                 cat,

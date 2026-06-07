@@ -6,13 +6,19 @@ class TermsOfServiceScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final backgroundColor = AppColors.getBackground(isDark);
+    final surfaceColor = AppColors.getSurface(isDark);
+    final textColor = AppColors.getTextPrimary(isDark);
+    final secondaryColor = AppColors.getTextSecondary(isDark);
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        backgroundColor: AppColors.background,
+        backgroundColor: backgroundColor,
         title: const Text('Terms of Service'),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+          icon: Icon(Icons.arrow_back, color: textColor),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -21,52 +27,52 @@ class TermsOfServiceScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSection('1. Eligibility', [
+            _buildSection(context, '1. Eligibility', [
               'You must be at least 13 years old to use the app.',
             ]),
-            _buildSection('2. Account Responsibility', [
+            _buildSection(context, '2. Account Responsibility', [
               'You are responsible for your account',
               'Keep credentials secure',
               'Provide accurate information',
             ]),
-            _buildSection('3. Marketplace Rules', [
+            _buildSection(context, '3. Marketplace Rules', [
               'Listings must be legal and accurate',
               'No prohibited or harmful items',
               'You are responsible for your products',
             ]),
-            _buildSection('4. AI Moderation', [
+            _buildSection(context, '4. AI Moderation', [
               'We may automatically review listings',
               'We may reject or remove content',
             ]),
-            _buildSection('5. Payments', [
+            _buildSection(context, '5. Payments', [
               'Processed via third-party providers',
               'We are not liable for external payment failures',
             ]),
-            _buildSection('6. Prohibited Conduct', [
+            _buildSection(context, '6. Prohibited Conduct', [
               'Users may not commit fraud or scams',
               'Upload illegal or offensive content',
               'Violate intellectual property rights',
               'Abuse the platform',
             ]),
-            _buildSection('7. Ratings & Reviews', [
+            _buildSection(context, '7. Ratings & Reviews', [
               'Must be honest',
               'No fake reviews or manipulation',
             ]),
-            _buildSection('8. Account Suspension', [
+            _buildSection(context, '8. Account Suspension', [
               'We may suspend or terminate accounts that violate policies.',
             ]),
-            _buildSection('9. Liability Disclaimer', [
+            _buildSection(context, '9. Liability Disclaimer', [
               'Olmeg Connect acts as a platform only',
               'We do not guarantee product quality',
               'We are not responsible for disputes between users',
             ]),
-            _buildSection('10. Privacy Reference', [
+            _buildSection(context, '10. Privacy Reference', [
               'Use of the app is also governed by our Privacy Policy.',
             ]),
-            _buildSection('11. Changes', [
+            _buildSection(context, '11. Changes', [
               'We may modify these terms at any time.',
             ]),
-            _buildSection('12. Governing Law', [
+            _buildSection(context, '12. Governing Law', [
               'Egyptian law',
               'Applicable international regulations (e.g., GDPR if relevant)',
             ]),
@@ -74,14 +80,18 @@ class TermsOfServiceScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(AppSpacing.md),
               decoration: BoxDecoration(
-                color: AppColors.surface,
+                color: surfaceColor,
                 borderRadius: BorderRadius.circular(AppRadius.md),
               ),
-              child: const Column(
+              child: Column(
                 children: [
-                  Text('Contact', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary)),
-                  SizedBox(height: 8),
-                  Text('Email: olmegconnect@gmail.com', style: TextStyle(color: AppColors.textPrimary)),
+                  const Text('Contact',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary)),
+                  const SizedBox(height: 8),
+                  Text('Email: olmegconnect@gmail.com',
+                      style: TextStyle(color: textColor)),
                 ],
               ),
             ),
@@ -89,7 +99,7 @@ class TermsOfServiceScreen extends StatelessWidget {
             Center(
               child: Text(
                 'Effective Date: ${DateTime.now().year}',
-                style: const TextStyle(color: AppColors.textSecondary),
+                style: TextStyle(color: secondaryColor),
               ),
             ),
           ],
@@ -98,7 +108,12 @@ class TermsOfServiceScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSection(String title, List<String> points) {
+  Widget _buildSection(
+      BuildContext context, String title, List<String> points) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = AppColors.getTextPrimary(isDark);
+    final secondaryColor = AppColors.getTextSecondary(isDark);
+
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.lg),
       child: Column(
@@ -118,9 +133,9 @@ class TermsOfServiceScreen extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('• ', style: TextStyle(color: AppColors.textSecondary)),
+                    Text('• ', style: TextStyle(color: secondaryColor)),
                     Expanded(
-                      child: Text(p, style: const TextStyle(color: AppColors.textPrimary)),
+                      child: Text(p, style: TextStyle(color: textColor)),
                     ),
                   ],
                 ),

@@ -21,7 +21,14 @@ class _AdminNotificationScreenState
   String? _message;
   bool _success = false;
 
-  final List<String> _targets = ['all', 'newUsers'];
+  final List<String> _targets = [
+    'all',
+    'buyers',
+    'merchants',
+    'handmadeBuyers',
+    'inactiveUsers',
+    'newUsers',
+  ];
 
   @override
   void dispose() {
@@ -54,6 +61,18 @@ class _AdminNotificationScreenState
                 runSpacing: 8,
                 children: [
                   _quickButton('Test', _sendTest, Icons.notifications),
+                  _quickButton('Seller update', () {
+                    _titleController.text = 'Seller update';
+                    _bodyController.text =
+                        'New seller tools and marketplace updates are ready.';
+                    setState(() => _targetType = 'merchants');
+                  }, Icons.storefront),
+                  _quickButton('Handmade buyers', () {
+                    _titleController.text = 'Handmade picks are waiting';
+                    _bodyController.text =
+                        'Fresh handmade products were added near you.';
+                    setState(() => _targetType = 'handmadeBuyers');
+                  }, Icons.auto_awesome),
                 ],
               ),
               const SizedBox(height: 24),
@@ -70,12 +89,10 @@ class _AdminNotificationScreenState
                       borderRadius: BorderRadius.circular(12)),
                   prefixIcon: const Icon(Icons.people),
                 ),
-                items: _targets
-                    .map((t) => DropdownMenuItem(
-                        value: t,
-                        child:
-                            Text(t == 'all' ? 'All Users' : 'New Users (24h)')))
-                    .toList(),
+                items: _targets.map((t) {
+                  return DropdownMenuItem(
+                      value: t, child: Text(_targetLabel(t)));
+                }).toList(),
                 onChanged: (v) => setState(() => _targetType = v ?? 'all'),
               ),
               const SizedBox(height: 16),
@@ -279,6 +296,7 @@ class _AdminNotificationScreenState
         'title': title,
         'body': message,
         'target': _targetType,
+        'targetLabel': _targetLabel(_targetType),
         'type': 'manual',
         'read': false,
         'createdAt': FieldValue.serverTimestamp(),
@@ -315,6 +333,15 @@ class _AdminNotificationScreenState
     if (_targetType == 'newUsers') {
       final cutoff = DateTime.now().subtract(const Duration(hours: 24));
       query = query.where('createdAt', isGreaterThanOrEqualTo: cutoff);
+    } else if (_targetType == 'merchants') {
+      query = query.where('role', whereIn: ['merchant', 'seller']);
+    } else if (_targetType == 'buyers') {
+      query = query.where('role', isEqualTo: 'user');
+    } else if (_targetType == 'handmadeBuyers') {
+      query = query.where('interests', arrayContains: 'handmade');
+    } else if (_targetType == 'inactiveUsers') {
+      final cutoff = DateTime.now().subtract(const Duration(days: 14));
+      query = query.where('lastActiveAt', isLessThan: cutoff);
     }
 
     final users = await query.get();
@@ -351,5 +378,22 @@ class _AdminNotificationScreenState
     }
 
     return total;
+  }
+
+  String _targetLabel(String target) {
+    switch (target) {
+      case 'buyers':
+        return 'Buyers';
+      case 'merchants':
+        return 'Merchants and sellers';
+      case 'handmadeBuyers':
+        return 'Handmade buyers';
+      case 'inactiveUsers':
+        return 'Inactive users';
+      case 'newUsers':
+        return 'New users (24h)';
+      default:
+        return 'All users';
+    }
   }
 }

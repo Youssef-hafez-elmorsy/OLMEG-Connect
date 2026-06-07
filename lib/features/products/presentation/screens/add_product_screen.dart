@@ -3,12 +3,15 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:olmeg_connect/core/localization/app_localizations.dart';
+import 'package:olmeg_connect/core/services/ai_marketplace_service.dart';
 import 'package:olmeg_connect/core/theme/app_theme.dart';
+import 'package:olmeg_connect/core/utils/navigation_utils.dart';
 import 'package:olmeg_connect/core/widgets/quantity_selector.dart';
+import 'package:olmeg_connect/features/auth/domain/entities/merchant_verification_entity.dart';
 import 'package:olmeg_connect/features/auth/presentation/providers/auth_provider.dart';
 import 'package:olmeg_connect/features/products/data/services/product_moderation_service.dart';
 import 'package:olmeg_connect/features/products/domain/entities/category_entity.dart';
@@ -21,11 +24,158 @@ class AddProductScreen extends ConsumerStatefulWidget {
   ConsumerState<AddProductScreen> createState() => _AddProductScreenState();
 }
 
+class _ListingQualityChecklist extends StatelessWidget {
+  final int score;
+  final List<_ListingQualityItem> items;
+
+  const _ListingQualityChecklist({
+    required this.score,
+    required this.items,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.checklist_outlined),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    l10n.t('listingQuality'),
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                Text('$score/${items.length}'),
+              ],
+            ),
+            const SizedBox(height: 8),
+            for (final item in items)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Row(
+                  children: [
+                    Icon(
+                      item.isComplete
+                          ? Icons.check_circle
+                          : Icons.radio_button_unchecked,
+                      color: item.isComplete
+                          ? colorScheme.primary
+                          : colorScheme.outline,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(item.label)),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ListingQualityItem {
+  final String label;
+  final bool isComplete;
+
+  const _ListingQualityItem(this.label, this.isComplete);
+}
+
+class _SellerAiHintsCard extends StatelessWidget {
+  final AiSellerHints? hints;
+  final bool isLoading;
+  final VoidCallback onRefresh;
+
+  const _SellerAiHintsCard({
+    required this.hints,
+    required this.isLoading,
+    required this.onRefresh,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final items = [
+      ...?hints?.titleSuggestions,
+      ...?hints?.descriptionSuggestions,
+      ...?hints?.pricingSignals,
+      ...?hints?.trustSignals,
+    ].take(6).toList();
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.auto_awesome_outlined),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'AI seller hints',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: isLoading ? null : onRefresh,
+                  icon: isLoading
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.tips_and_updates_outlined),
+                  label: const Text('Improve'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (items.isEmpty)
+              Text(
+                'Get title, description, pricing, and trust suggestions before publishing.',
+                style: TextStyle(color: colorScheme.onSurfaceVariant),
+              )
+            else
+              for (final item in items)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.check_circle_outline,
+                        size: 18,
+                        color: colorScheme.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(item)),
+                    ],
+                  ),
+                ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _AddProductScreenState extends ConsumerState<AddProductScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
   final _priceCtrl = TextEditingController();
+  final _locationCtrl = TextEditingController();
   int _quantity = 1;
 
   File? _imageFile;
@@ -34,6 +184,10 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
   bool _isLoading = false;
   List<Uint8List> _imageBytesList = [];
   List<File> _imageFilesList = [];
+  bool _saveAsDraft = false;
+  bool _scheduleTomorrow = false;
+  bool _loadingSellerHints = false;
+  AiSellerHints? _sellerHints;
 
   bool get _hasImage =>
       _imageFile != null ||
@@ -54,7 +208,10 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
     ref.invalidate(categoriesStreamProvider);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Categories initialized!')),
+        SnackBar(
+          content:
+              Text(AppLocalizations.of(context).t('categoriesInitialized')),
+        ),
       );
     }
   }
@@ -64,6 +221,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
     _titleCtrl.dispose();
     _descCtrl.dispose();
     _priceCtrl.dispose();
+    _locationCtrl.dispose();
     super.dispose();
   }
 
@@ -154,27 +312,28 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    final l10n = AppLocalizations.of(context);
 
     final selectedCategory = ref.read(selectedCategoryProvider);
     final selectedSubcategory = ref.read(selectedSubcategoryProvider);
 
     if (selectedCategory == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a category')),
+        SnackBar(content: Text(l10n.t('categoryRequired'))),
       );
       return;
     }
 
     if (selectedSubcategory == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a subcategory')),
+        SnackBar(content: Text(l10n.t('subcategoryRequired'))),
       );
       return;
     }
 
     if (!_hasImage) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a product image')),
+        SnackBar(content: Text(l10n.t('imageRequired'))),
       );
       return;
     }
@@ -189,7 +348,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
         setState(() => _isLoading = false);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Please sign in first')),
+            SnackBar(content: Text(l10n.t('signInFirst'))),
           );
         }
         return;
@@ -202,12 +361,37 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
         imagesList = [imageUrls];
       }
 
+      final productRef =
+          FirebaseFirestore.instance.collection('products').doc();
       final productData = {
         'titleLower': _titleCtrl.text.trim().toLowerCase(),
         'title': _titleCtrl.text.trim(),
         'description': _descCtrl.text.trim(),
         'price': double.parse(_priceCtrl.text.trim()),
         'stock': _quantity,
+        'stockQuantity': _quantity,
+        'status': _saveAsDraft
+            ? 'draft'
+            : _scheduleTomorrow
+                ? 'scheduled'
+                : 'active',
+        'publishStatus': _saveAsDraft
+            ? 'draft'
+            : _scheduleTomorrow
+                ? 'scheduled'
+                : 'published',
+        'scheduledPublishAt': _scheduleTomorrow
+            ? Timestamp.fromDate(DateTime.now().add(const Duration(days: 1)))
+            : null,
+        'promotionStatus': 'none',
+        'discountCampaignId': null,
+        'ratingAverage': 0,
+        'ratingCount': 0,
+        'variants': const [],
+        'returnPolicy': 'Contact seller for return details',
+        'deliveryEstimate': selectedCategory.name.toLowerCase().contains('hand')
+            ? 'Delivery available for handmade products'
+            : '',
         'category': selectedCategory.name,
         'categoryId': selectedCategory.id,
         'categoryName': selectedCategory.name,
@@ -219,30 +403,62 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
         'sellerId': user.id,
         'sellerName': user.name,
         'sellerPhotoUrl': user.photoUrl,
-        'location': '',
+        'sellerMerchantVerificationStatus': merchantVerificationStatusToString(
+          user.merchantVerificationStatus,
+        ),
+        'listingQualityScore': _listingQualityScore,
+        'listingQualityChecklist': [
+          for (final item in _listingQualityChecklist)
+            {'label': item.label, 'isComplete': item.isComplete},
+        ],
+        'deliveryEligible':
+            selectedCategory.name.toLowerCase().contains('hand') &&
+                user.isApprovedMerchant,
+        'location': _locationCtrl.text.trim(),
+        'city': _locationCtrl.text.trim(),
         'createdAt': FieldValue.serverTimestamp(),
       };
 
-      final moderation = ProductModerationService().review(
+      final moderation = await ProductAiModerationService().review(
+        productId: productRef.id,
         title: _titleCtrl.text.trim(),
         description: _descCtrl.text.trim(),
         price: double.parse(_priceCtrl.text.trim()),
+        category: selectedCategory.name,
+        subcategory: selectedSubcategory.name,
+        location: _locationCtrl.text.trim(),
+        imageUrl: imagesList.isNotEmpty ? imagesList.first : null,
       );
 
-      final productRef =
-          FirebaseFirestore.instance.collection('products').doc();
       final reviewedProductData = {
         ...productData,
         'id': productRef.id,
-        'moderationStatus': moderation.approved ? 'approved' : 'pending_admin',
-        'moderationDecision':
-            moderation.approved ? 'accepted' : 'needs_admin_review',
+        'moderationStatus': _saveAsDraft
+            ? 'draft'
+            : moderation.approved
+                ? 'approved'
+                : 'pending_admin',
+        'moderationDecision': _saveAsDraft
+            ? 'seller_draft'
+            : moderation.approved
+                ? 'accepted'
+                : 'needs_admin_review',
         'moderationReason': moderation.reasons.join('\n'),
         'moderationConfidence': moderation.confidence,
+        'aiRiskScore': moderation.riskScore,
+        'aiRiskLevel': moderation.riskLevel,
+        'aiSuggestedAction': moderation.suggestedAction,
+        'aiReasons': moderation.reasons,
+        'aiSignals': moderation.signals,
+        'aiSellerHints': moderation.sellerHints,
+        'aiProvider': moderation.provider,
+        'aiModel': moderation.model,
         'moderatedAt': FieldValue.serverTimestamp(),
       };
 
-      if (moderation.approved) {
+      if (_saveAsDraft) {
+        await productRef.set(reviewedProductData);
+      } else if (moderation.approved) {
         await productRef.set(reviewedProductData);
         await _createUserNotification(
           userId: user.id,
@@ -271,12 +487,16 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
           SnackBar(
             content: Text(
               moderation.approved
-                  ? 'Product approved and listed successfully!'
-                  : 'Product sent to admin review before publication.',
+                  ? (_scheduleTomorrow
+                      ? l10n.t('productApprovedScheduled')
+                      : l10n.t('productApprovedListed'))
+                  : _saveAsDraft
+                      ? l10n.t('productSavedDraft')
+                      : l10n.t('productSentReview'),
             ),
           ),
         );
-        context.pop();
+        closeOrGo(context);
       }
     } catch (e) {
       setState(() => _isLoading = false);
@@ -286,6 +506,37 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
         );
       }
     }
+  }
+
+  Future<void> _loadSellerHints() async {
+    final selectedCategory = ref.read(selectedCategoryProvider);
+    final selectedSubcategory = ref.read(selectedSubcategoryProvider);
+    final price = double.tryParse(_priceCtrl.text.trim());
+    if (_titleCtrl.text.trim().isEmpty ||
+        _descCtrl.text.trim().isEmpty ||
+        price == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Add a title, description, and price first.'),
+        ),
+      );
+      return;
+    }
+
+    setState(() => _loadingSellerHints = true);
+    final hints = await AiMarketplaceService().sellerHints(
+      title: _titleCtrl.text.trim(),
+      description: _descCtrl.text.trim(),
+      price: price,
+      category: selectedCategory?.name,
+      subcategory: selectedSubcategory?.name,
+      location: _locationCtrl.text.trim(),
+    );
+    if (!mounted) return;
+    setState(() {
+      _sellerHints = hints;
+      _loadingSellerHints = false;
+    });
   }
 
   Future<void> _createUserNotification({
@@ -316,6 +567,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
     final dividerColor = isDark ? AppColors.divider : const Color(0xFFE2E8F0);
 
     final categoriesAsync = ref.watch(categoriesStreamProvider);
+    final l10n = AppLocalizations.of(context);
     final selectedCategory = ref.watch(selectedCategoryProvider);
     final selectedSubcategory = ref.watch(selectedSubcategoryProvider);
 
@@ -327,10 +579,10 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
       backgroundColor: bgColor,
       appBar: AppBar(
         backgroundColor: bgColor,
-        title: Text('List a Product', style: TextStyle(color: textColor)),
+        title: Text(l10n.t('addProduct'), style: TextStyle(color: textColor)),
         leading: IconButton(
           icon: Icon(Icons.close, color: textColor),
-          onPressed: () => context.pop(),
+          onPressed: () => closeOrGo(context),
         ),
       ),
       body: SingleChildScrollView(
@@ -475,9 +727,9 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                             Icon(Icons.add_photo_alternate_outlined,
                                 size: 48, color: secColor),
                             const SizedBox(height: 8),
-                            Text('Tap to add images',
+                            Text(l10n.t('tapToAddImages'),
                                 style: TextStyle(color: secColor)),
-                            Text('(Select multiple)',
+                            Text('(${l10n.t('selectMultiple')})',
                                 style:
                                     TextStyle(color: secColor, fontSize: 12)),
                           ],
@@ -489,10 +741,11 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
               TextFormField(
                 controller: _titleCtrl,
                 style: TextStyle(color: textColor),
-                decoration: _inputDecoration('Product Title', Icons.title,
-                    secColor, cardColor, dividerColor),
+                decoration: _inputDecoration(l10n.t('productTitle'),
+                    Icons.title, secColor, cardColor, dividerColor),
+                onChanged: (_) => setState(() {}),
                 validator: (v) =>
-                    v == null || v.isEmpty ? 'Title is required' : null,
+                    v == null || v.isEmpty ? l10n.t('titleRequired') : null,
               ),
               const SizedBox(height: 16),
 
@@ -500,11 +753,13 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                 controller: _descCtrl,
                 maxLines: 3,
                 style: TextStyle(color: textColor),
-                decoration: _inputDecoration('Description', Icons.description,
-                    secColor, cardColor, dividerColor,
+                decoration: _inputDecoration(l10n.t('description'),
+                    Icons.description, secColor, cardColor, dividerColor,
                     alignLabelWithHint: true),
-                validator: (v) =>
-                    v == null || v.isEmpty ? 'Description is required' : null,
+                onChanged: (_) => setState(() {}),
+                validator: (v) => v == null || v.isEmpty
+                    ? l10n.t('descriptionRequired')
+                    : null,
               ),
               const SizedBox(height: 16),
 
@@ -512,26 +767,45 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                 controller: _priceCtrl,
                 keyboardType: TextInputType.number,
                 style: TextStyle(color: textColor),
-                decoration: _inputDecoration('Price', Icons.attach_money,
-                    secColor, cardColor, dividerColor),
+                decoration: _inputDecoration(l10n.t('price'),
+                    Icons.attach_money, secColor, cardColor, dividerColor),
+                onChanged: (_) => setState(() {}),
                 validator: (v) {
-                  if (v == null || v.isEmpty) return 'Price is required';
-                  if (double.tryParse(v) == null) return 'Enter a valid number';
+                  if (v == null || v.isEmpty) return l10n.t('priceRequired');
+                  if (double.tryParse(v) == null) return l10n.t('validNumber');
                   return null;
                 },
               ),
               const SizedBox(height: 16),
 
+              TextFormField(
+                controller: _locationCtrl,
+                textCapitalization: TextCapitalization.words,
+                style: TextStyle(color: textColor),
+                decoration: _inputDecoration(
+                        l10n.t('cityOrArea'),
+                        Icons.location_on_outlined,
+                        secColor,
+                        cardColor,
+                        dividerColor)
+                    .copyWith(hintText: l10n.t('locationHint')),
+                onChanged: (_) => setState(() {}),
+                validator: (v) => v == null || v.trim().isEmpty
+                    ? l10n.t('locationRequired')
+                    : null,
+              ),
+              const SizedBox(height: 16),
+
               QuantitySelector(
-                label: 'Quantity',
+                label: l10n.t('quantity'),
                 quantity: _quantity,
                 maxQuantity: 99,
                 onChanged: (q) => setState(() => _quantity = q),
               ),
               const SizedBox(height: 24),
 
-              const Text('Category *',
-                  style: TextStyle(fontWeight: FontWeight.w600)),
+              Text('${l10n.t('category')} *',
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               categoriesAsync.when(
                 loading: () => _buildLoadingDropdown(secColor, cardColor),
@@ -553,14 +827,16 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                 child: TextButton.icon(
                   onPressed: _forceInitialize,
                   icon: const Icon(Icons.refresh, size: 16),
-                  label: const Text('Init Categories',
-                      style: TextStyle(fontSize: 12)),
+                  label: Text(
+                    AppLocalizations.of(context).t('initializeCategories'),
+                    style: const TextStyle(fontSize: 12),
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
 
-              const Text('Subcategory *',
-                  style: TextStyle(fontWeight: FontWeight.w600)),
+              Text('${l10n.t('subcategory')} *',
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               _buildSubcategoryDropdown(
                 selectedCategory,
@@ -569,6 +845,41 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                 secColor,
                 cardColor,
                 dividerColor,
+              ),
+              const SizedBox(height: 24),
+
+              _ListingQualityChecklist(
+                score: _listingQualityScore,
+                items: _listingQualityChecklist,
+              ),
+              const SizedBox(height: 24),
+              _SellerAiHintsCard(
+                hints: _sellerHints,
+                isLoading: _loadingSellerHints,
+                onRefresh: _loadSellerHints,
+              ),
+              const SizedBox(height: 24),
+
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(l10n.t('saveAsDraft')),
+                subtitle: Text(l10n.t('draftSubtitle')),
+                value: _saveAsDraft,
+                onChanged: (value) {
+                  setState(() {
+                    _saveAsDraft = value;
+                    if (value) _scheduleTomorrow = false;
+                  });
+                },
+              ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(l10n.t('scheduleTomorrow')),
+                subtitle: Text(l10n.t('scheduleSubtitle')),
+                value: _scheduleTomorrow,
+                onChanged: _saveAsDraft
+                    ? null
+                    : (value) => setState(() => _scheduleTomorrow = value),
               ),
               const SizedBox(height: 24),
 
@@ -586,7 +897,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                           width: 20,
                           height: 20,
                           child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Text('List Product'),
+                      : Text(l10n.t('listProduct')),
                 ),
               ),
             ],
@@ -594,6 +905,31 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
         ),
       ),
     );
+  }
+
+  int get _listingQualityScore {
+    return _listingQualityChecklist.where((item) => item.isComplete).length;
+  }
+
+  List<_ListingQualityItem> get _listingQualityChecklist {
+    return [
+      _ListingQualityItem(
+        AppLocalizations.of(context).t('clearTitle'),
+        _titleCtrl.text.trim().length >= 8,
+      ),
+      _ListingQualityItem(
+        AppLocalizations.of(context).t('helpfulDescription'),
+        _descCtrl.text.trim().length >= 40,
+      ),
+      _ListingQualityItem(AppLocalizations.of(context).t('validPrice'),
+          double.tryParse(_priceCtrl.text) != null),
+      _ListingQualityItem(
+          AppLocalizations.of(context).t('atLeastOneImage'), _hasImage),
+      _ListingQualityItem(
+          AppLocalizations.of(context).t('stockQuantitySet'), _quantity > 0),
+      _ListingQualityItem(AppLocalizations.of(context).t('locationAdded'),
+          _locationCtrl.text.trim().isNotEmpty),
+    ];
   }
 
   InputDecoration _inputDecoration(
@@ -627,6 +963,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
   }
 
   Widget _buildLoadingDropdown(Color secColor, Color cardColor) {
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       decoration: BoxDecoration(
@@ -641,7 +978,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
               height: 16,
               child: CircularProgressIndicator(strokeWidth: 2)),
           const SizedBox(width: 12),
-          Text('Loading categories...', style: TextStyle(color: secColor)),
+          Text(l10n.t('loadingCategories'), style: TextStyle(color: secColor)),
         ],
       ),
     );
@@ -667,6 +1004,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
   }
 
   Widget _buildEmptyCategories(Color secColor, Color cardColor) {
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       decoration: BoxDecoration(
@@ -678,11 +1016,11 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
         children: [
           Icon(Icons.category_outlined, color: secColor, size: 32),
           const SizedBox(height: 8),
-          Text('No categories found', style: TextStyle(color: secColor)),
+          Text(l10n.t('noCategoriesFound'), style: TextStyle(color: secColor)),
           const SizedBox(height: 8),
           ElevatedButton(
             onPressed: _forceInitialize,
-            child: const Text('Initialize Categories'),
+            child: Text(l10n.t('initializeCategories')),
           ),
         ],
       ),
@@ -707,7 +1045,8 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
         child: DropdownButton<CategoryEntity>(
           isExpanded: true,
           value: selectedCategory,
-          hint: Text('Select Category', style: TextStyle(color: secColor)),
+          hint: Text(AppLocalizations.of(context).t('selectCategory'),
+              style: TextStyle(color: secColor)),
           icon: const Icon(Icons.arrow_drop_down),
           dropdownColor: cardColor,
           items: (() {
@@ -765,7 +1104,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                'Select Category First',
+                AppLocalizations.of(context).t('selectCategoryFirst'),
                 style: TextStyle(color: secColor.withValues(alpha: 0.5)),
               ),
             ),
@@ -788,7 +1127,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
               border: Border.all(color: dividerColor),
             ),
             child: Text(
-              'No subcategories available',
+              AppLocalizations.of(context).t('noSubcategories'),
               style: TextStyle(color: secColor),
             ),
           );
@@ -805,8 +1144,8 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
             child: DropdownButton<SubcategoryEntity>(
               isExpanded: true,
               value: selectedSubcategory,
-              hint:
-                  Text('Select Subcategory', style: TextStyle(color: secColor)),
+              hint: Text(AppLocalizations.of(context).t('selectSubcategory'),
+                  style: TextStyle(color: secColor)),
               icon: const Icon(Icons.arrow_drop_down),
               dropdownColor: cardColor,
               items: subcategories.map((sub) {

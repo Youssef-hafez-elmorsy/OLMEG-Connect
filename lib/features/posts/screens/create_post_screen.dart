@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:olmeg_connect/core/localization/app_localizations.dart';
+import 'package:olmeg_connect/core/utils/navigation_utils.dart';
 import 'package:olmeg_connect/features/posts/models/post_model.dart';
 import 'package:olmeg_connect/features/posts/services/firestore_service.dart';
 import 'package:olmeg_connect/features/posts/services/user_service.dart';
@@ -16,15 +18,15 @@ class CreatePostScreen extends ConsumerStatefulWidget {
 
 class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   String _postType = 'made';
-  
+
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _priceController = TextEditingController();
   final _categoryController = TextEditingController();
-  
+
   List<XFile> _selectedImages = [];
   List<double> _uploadProgress = [];
-  String _audience = 'public';
+  final String _audience = 'public';
   bool _isPosting = false;
 
   final _picker = ImagePicker();
@@ -48,7 +50,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
         title: const Text('Create Post'),
         leading: IconButton(
           icon: const Icon(Icons.close),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () => closeOrGo(context),
         ),
         automaticallyImplyLeading: false,
         actions: [
@@ -62,7 +64,11 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                 disabledBackgroundColor: colorScheme.surfaceContainerHighest,
               ),
               child: _isPosting
-                  ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: colorScheme.primary))
+                  ? SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: colorScheme.primary))
                   : const Text('Post'),
             ),
           ),
@@ -107,16 +113,22 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                 child: ElevatedButton.icon(
                   onPressed: _canPost() && !_isPosting ? _handlePost : null,
                   icon: _isPosting
-                      ? SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: colorScheme.onPrimary))
+                      ? SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: colorScheme.onPrimary))
                       : const Icon(Icons.send, size: 24),
                   label: Text(
                     _isPosting ? 'Publishing...' : 'Publish Post',
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: colorScheme.primary,
                     foregroundColor: colorScheme.onPrimary,
-                    disabledBackgroundColor: colorScheme.surfaceContainerHighest,
+                    disabledBackgroundColor:
+                        colorScheme.surfaceContainerHighest,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(28),
                     ),
@@ -139,14 +151,24 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
           padding: const EdgeInsets.all(12),
           child: Row(
             children: [
-              AvatarWidget(imageUrl: user?.profileImageUrl, name: user?.displayName, avatarColor: user?.avatarColor ?? '0xFF9E9E9E', sizeType: AvatarSizeType.medium),
+              AvatarWidget(
+                  imageUrl: user?.profileImageUrl,
+                  name: user?.displayName,
+                  avatarColor: user?.avatarColor ?? '0xFF9E9E9E',
+                  sizeType: AvatarSizeType.medium),
               const SizedBox(width: 8),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(user?.displayName ?? 'User', style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold)),
-                    Text(_postType == 'made' ? 'Selling' : 'Looking for', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.primary)),
+                    Text(user?.displayName ?? 'User',
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyLarge
+                            ?.copyWith(fontWeight: FontWeight.bold)),
+                    Text(_postType == 'made' ? 'Selling' : 'Looking for',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).colorScheme.primary)),
                   ],
                 ),
               ),
@@ -174,14 +196,18 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   decoration: BoxDecoration(
-                    color: _postType == 'made' ? colorScheme.primary : Colors.transparent,
+                    color: _postType == 'made'
+                        ? colorScheme.primary
+                        : Colors.transparent,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Center(
                     child: Text(
                       'I Made Products',
                       style: TextStyle(
-                        color: _postType == 'made' ? colorScheme.onPrimary : colorScheme.onSurfaceVariant,
+                        color: _postType == 'made'
+                            ? colorScheme.onPrimary
+                            : colorScheme.onSurfaceVariant,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -195,14 +221,18 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   decoration: BoxDecoration(
-                    color: _postType == 'wanted' ? colorScheme.primary : Colors.transparent,
+                    color: _postType == 'wanted'
+                        ? colorScheme.primary
+                        : Colors.transparent,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Center(
                     child: Text(
                       'I Want Products',
                       style: TextStyle(
-                        color: _postType == 'wanted' ? colorScheme.onPrimary : colorScheme.onSurfaceVariant,
+                        color: _postType == 'wanted'
+                            ? colorScheme.onPrimary
+                            : colorScheme.onSurfaceVariant,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -249,6 +279,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
 
   Widget _buildCategoryField(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context);
     final categories = [
       'New',
       'Used',
@@ -264,9 +295,10 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: DropdownButtonFormField<String>(
-        initialValue: _categoryController.text.isEmpty ? null : _categoryController.text,
+        initialValue:
+            _categoryController.text.isEmpty ? null : _categoryController.text,
         decoration: InputDecoration(
-          labelText: 'Category',
+          labelText: l10n.t('category'),
           prefixIcon: Icon(
             Icons.category,
             color: colorScheme.primary,
@@ -282,7 +314,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
         items: categories
             .map((cat) => DropdownMenuItem(
                   value: cat,
-                  child: Text(cat),
+                  child: Text(l10n.categoryLabel(cat)),
                 ))
             .toList(),
         onChanged: (value) {
@@ -324,7 +356,9 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
           Text(
             '${text.length}/500',
             style: TextStyle(
-              color: text.length > 450 ? colorScheme.error : colorScheme.onSurfaceVariant,
+              color: text.length > 450
+                  ? colorScheme.error
+                  : colorScheme.onSurfaceVariant,
               fontSize: 12,
               fontWeight: FontWeight.w500,
             ),
@@ -416,7 +450,8 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
         scrollDirection: Axis.horizontal,
         child: Row(
           children: [
-            _AttachmentButton(icon: Icons.photo, label: 'Photo', onTap: _pickImages),
+            _AttachmentButton(
+                icon: Icons.photo, label: 'Photo', onTap: _pickImages),
           ],
         ),
       ),
@@ -424,7 +459,9 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   }
 
   bool _canPost() {
-    return _titleController.text.trim().isNotEmpty || _descriptionController.text.trim().isNotEmpty || _selectedImages.isNotEmpty;
+    return _titleController.text.trim().isNotEmpty ||
+        _descriptionController.text.trim().isNotEmpty ||
+        _selectedImages.isNotEmpty;
   }
 
   Future<void> _pickImages() async {
@@ -440,7 +477,8 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   Future<void> _handlePost() async {
     if (!_canPost()) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill in the title or add a photo!')),
+        const SnackBar(
+            content: Text('Please fill in the title or add a photo!')),
       );
       return;
     }
@@ -450,7 +488,8 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
       if (user == null) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Please login first to create a post!')),
+            const SnackBar(
+                content: Text('Please login first to create a post!')),
           );
         }
         return;
@@ -460,10 +499,13 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
 
       List<String> imageUrls = [];
       if (_selectedImages.isNotEmpty) {
-        imageUrls = await FirestoreService.uploadImages(_selectedImages, user.userId);
+        imageUrls =
+            await FirestoreService.uploadImages(_selectedImages, user.userId);
       }
 
-      final price = _priceController.text.trim().isNotEmpty ? double.tryParse(_priceController.text.trim()) : null;
+      final price = _priceController.text.trim().isNotEmpty
+          ? double.tryParse(_priceController.text.trim())
+          : null;
 
       final post = PostModel(
         id: PostModel.generateId(),
@@ -475,7 +517,9 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
         postType: _postType,
         title: _titleController.text.trim(),
         description: _descriptionController.text.trim(),
-        category: _categoryController.text.trim().isNotEmpty ? _categoryController.text.trim() : null,
+        category: _categoryController.text.trim().isNotEmpty
+            ? _categoryController.text.trim()
+            : null,
         price: _postType == 'made' ? price : null,
         budget: _postType == 'wanted' ? price : null,
         imageURLs: imageUrls,
@@ -488,12 +532,14 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
       await FirestoreService.createPost(post);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Post created successfully!')));
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Post created successfully!')));
         Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     } finally {
       if (mounted) setState(() => _isPosting = false);
@@ -506,7 +552,8 @@ class _AttachmentButton extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
 
-  const _AttachmentButton({required this.icon, required this.label, required this.onTap});
+  const _AttachmentButton(
+      {required this.icon, required this.label, required this.onTap});
 
   @override
   Widget build(BuildContext context) {

@@ -10,12 +10,13 @@ import 'package:olmeg_connect/features/auth/presentation/providers/auth_provider
 final userFavoritesProvider = StreamProvider<List<String>>((ref) {
   final user = ref.watch(authStateProvider).value;
   if (user == null) return Stream.value([]);
-  
+
   return FirebaseFirestore.instance
       .collection('favorites')
       .where('userId', isEqualTo: user.id)
       .snapshots()
-      .map((snap) => snap.docs.map((doc) => doc['productId'] as String).toList());
+      .map((snap) =>
+          snap.docs.map((doc) => doc['productId'] as String).toList());
 });
 
 class FavoritesScreen extends ConsumerWidget {
@@ -24,29 +25,37 @@ class FavoritesScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final favoritesAsync = ref.watch(userFavoritesProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final backgroundColor = AppColors.getBackground(isDark);
+    final textColor = AppColors.getTextPrimary(isDark);
+    final secondaryColor = AppColors.getTextSecondary(isDark);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        backgroundColor: AppColors.background,
+        backgroundColor: backgroundColor,
         title: const Text('Favorites'),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+          icon: Icon(Icons.arrow_back, color: textColor),
           onPressed: () => Navigator.pop(context),
         ),
       ),
       body: favoritesAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
-        error: (e, _) => Center(child: Text('Error: $e', style: const TextStyle(color: AppColors.error))),
+        loading: () => const Center(
+            child: CircularProgressIndicator(color: AppColors.primary)),
+        error: (e, _) => Center(
+            child: Text('Error: $e',
+                style: const TextStyle(color: AppColors.error))),
         data: (favoriteIds) {
           if (favoriteIds.isEmpty) {
-            return const Center(
+            return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.favorite_border, size: 64, color: AppColors.textSecondary),
-                  SizedBox(height: AppSpacing.md),
-                  Text('No favorites yet', style: TextStyle(color: AppColors.textSecondary, fontSize: 16)),
+                  Icon(Icons.favorite_border, size: 64, color: secondaryColor),
+                  const SizedBox(height: AppSpacing.md),
+                  Text('No favorites yet',
+                      style: TextStyle(color: secondaryColor, fontSize: 16)),
                 ],
               ),
             );
@@ -55,10 +64,16 @@ class FavoritesScreen extends ConsumerWidget {
             future: _fetchFavoriteProducts(favoriteIds),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+                return const Center(
+                    child: CircularProgressIndicator(color: AppColors.primary));
               }
               if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                return const Center(child: Text('No favorites', style: TextStyle(color: AppColors.textSecondary)));
+                return Center(
+                  child: Text(
+                    'No favorites',
+                    style: TextStyle(color: secondaryColor),
+                  ),
+                );
               }
               return GridView.builder(
                 padding: const EdgeInsets.all(AppSpacing.md),
@@ -73,7 +88,8 @@ class FavoritesScreen extends ConsumerWidget {
                   final product = snapshot.data![index];
                   return ProductCard(
                     product: product,
-                    onFavorite: () => _toggleFavorite(context, ref, product.id, product.isFavorite),
+                    onFavorite: () => _toggleFavorite(
+                        context, ref, product.id, product.isFavorite),
                   );
                 },
               );
@@ -84,13 +100,15 @@ class FavoritesScreen extends ConsumerWidget {
     );
   }
 
-  Future<List<ProductEntity>> _fetchFavoriteProducts(List<String> favoriteIds) async {
+  Future<List<ProductEntity>> _fetchFavoriteProducts(
+      List<String> favoriteIds) async {
     if (favoriteIds.isEmpty) return [];
 
     final products = <ProductEntity>[];
 
     for (final id in favoriteIds) {
-      final doc = await FirebaseFirestore.instance.collection('products').doc(id).get();
+      final doc =
+          await FirebaseFirestore.instance.collection('products').doc(id).get();
       if (doc.exists) {
         final data = doc.data()!;
         products.add(ProductEntity(
@@ -102,7 +120,8 @@ class FavoritesScreen extends ConsumerWidget {
           imageUrl: data['imageUrl'] ?? '',
           sellerId: data['sellerId'] ?? '',
           sellerName: data['sellerName'] ?? '',
-          createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+          createdAt:
+              (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
           city: data['location'] ?? '',
           isFavorite: true,
         ));
@@ -111,12 +130,15 @@ class FavoritesScreen extends ConsumerWidget {
     return products;
   }
 
-  void _toggleFavorite(BuildContext context, WidgetRef ref, String productId, bool isFavorite) async {
+  void _toggleFavorite(BuildContext context, WidgetRef ref, String productId,
+      bool isFavorite) async {
     await ref.read(favoriteNotifierProvider.notifier).toggleFavorite(productId);
     ref.invalidate(userFavoritesProvider);
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(isFavorite ? 'Removed from favorites' : 'Added to favorites')),
+        SnackBar(
+            content: Text(
+                isFavorite ? 'Removed from favorites' : 'Added to favorites')),
       );
     }
   }

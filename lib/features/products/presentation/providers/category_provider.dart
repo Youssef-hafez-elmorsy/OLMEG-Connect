@@ -11,18 +11,25 @@ final categoriesStreamProvider = StreamProvider<List<CategoryEntity>>((ref) {
   });
 });
 
-final subcategoriesStreamProvider = StreamProvider.family<List<SubcategoryEntity>, String>((ref, categoryId) {
+final cachedCategoriesProvider = FutureProvider<List<CategoryEntity>>((ref) {
+  return CategoryService.getCachedCategories();
+});
+
+final subcategoriesStreamProvider =
+    StreamProvider.family<List<SubcategoryEntity>, String>((ref, categoryId) {
   if (categoryId.isEmpty) {
     return Stream.value([]);
   }
   final stream = CategoryService.getSubcategoriesStream(categoryId);
   return stream.map((subcategories) {
-    debugPrint('[SubcategoriesProvider] Subcategories: ${subcategories.length}');
+    debugPrint(
+        '[SubcategoriesProvider] Subcategories: ${subcategories.length}');
     return subcategories;
   });
 });
 
-final selectedCategoryProvider = NotifierProvider<SelectedCategoryNotifier, CategoryEntity?>(() {
+final selectedCategoryProvider =
+    NotifierProvider<SelectedCategoryNotifier, CategoryEntity?>(() {
   return SelectedCategoryNotifier();
 });
 
@@ -39,7 +46,8 @@ class SelectedCategoryNotifier extends Notifier<CategoryEntity?> {
   }
 }
 
-final selectedSubcategoryProvider = NotifierProvider<SelectedSubcategoryNotifier, SubcategoryEntity?>(() {
+final selectedSubcategoryProvider =
+    NotifierProvider<SelectedSubcategoryNotifier, SubcategoryEntity?>(() {
   return SelectedSubcategoryNotifier();
 });
 
@@ -71,7 +79,8 @@ class CategoryNotifier extends Notifier<AsyncValue<void>> {
   }
 }
 
-final categoryNotifierProvider = NotifierProvider<CategoryNotifier, AsyncValue<void>>(() {
+final categoryNotifierProvider =
+    NotifierProvider<CategoryNotifier, AsyncValue<void>>(() {
   return CategoryNotifier();
 });
 

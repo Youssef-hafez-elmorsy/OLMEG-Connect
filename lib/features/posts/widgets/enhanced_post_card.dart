@@ -36,7 +36,7 @@ class EnhancedPostCard extends StatefulWidget {
 class _EnhancedPostCardState extends State<EnhancedPostCard> {
   final _commentController = TextEditingController();
   bool _isLiked = false;
-  List<Map<String, String>> _comments = [
+  final List<Map<String, String>> _comments = [
     {
       'author': 'John Doe',
       'avatar': '👤',
@@ -74,11 +74,13 @@ class _EnhancedPostCardState extends State<EnhancedPostCard> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? const Color(0xFF0F172A) : const Color(0xFFF5F5F7);
-    final surfaceColor = isDark ? const Color(0xFF1E293B) : const Color(0xFFFFFFFF);
-    final textColor = isDark ? const Color(0xFFF8FAFC) : const Color(0xFF1E293B);
+    final surfaceColor =
+        isDark ? const Color(0xFF1E293B) : const Color(0xFFFFFFFF);
+    final textColor =
+        isDark ? const Color(0xFFF8FAFC) : const Color(0xFF1E293B);
     final secColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
-    final dividerColor = isDark ? const Color(0xFF475569) : const Color(0xFFE2E8F0);
+    final dividerColor =
+        isDark ? const Color(0xFF475569) : const Color(0xFFE2E8F0);
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
@@ -149,7 +151,7 @@ class _EnhancedPostCardState extends State<EnhancedPostCard> {
                     ),
                     child: Text(
                       widget.priceTag!,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                         color: AppColors.primary,
@@ -190,7 +192,7 @@ class _EnhancedPostCardState extends State<EnhancedPostCard> {
                     errorBuilder: (_, __, ___) => Container(
                       width: 200,
                       color: AppColors.primary.withValues(alpha: 0.1),
-                      child: Icon(
+                      child: const Icon(
                         Icons.image_outlined,
                         color: AppColors.primary,
                       ),
@@ -256,7 +258,8 @@ class _EnhancedPostCardState extends State<EnhancedPostCard> {
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: AppColors.primary.withValues(alpha: 0.1),
-                        border: Border.all(color: AppColors.primary, width: 1.5),
+                        border:
+                            Border.all(color: AppColors.primary, width: 1.5),
                       ),
                       child: const Center(
                         child: Text('👤', style: TextStyle(fontSize: 18)),
@@ -280,7 +283,7 @@ class _EnhancedPostCardState extends State<EnhancedPostCard> {
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(20),
-                            borderSide: BorderSide(
+                            borderSide: const BorderSide(
                               color: AppColors.primary,
                               width: 1.5,
                             ),
@@ -290,7 +293,7 @@ class _EnhancedPostCardState extends State<EnhancedPostCard> {
                             vertical: 10,
                           ),
                           suffixIcon: IconButton(
-                            icon: Icon(
+                            icon: const Icon(
                               Icons.send,
                               color: AppColors.primary,
                               size: 18,
@@ -305,67 +308,67 @@ class _EnhancedPostCardState extends State<EnhancedPostCard> {
                 const SizedBox(height: 16),
                 // Comments List
                 ..._comments.map((comment) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: AppColors.primary.withValues(alpha: 0.1),
-                          border: Border.all(
-                            color: AppColors.primary,
-                            width: 1,
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: AppColors.primary.withValues(alpha: 0.1),
+                              border: Border.all(
+                                color: AppColors.primary,
+                                width: 1,
+                              ),
+                            ),
+                            child: Center(
+                              child: Text(
+                                comment['avatar']!,
+                                style: const TextStyle(fontSize: 16),
+                              ),
+                            ),
                           ),
-                        ),
-                        child: Center(
-                          child: Text(
-                            comment['avatar']!,
-                            style: const TextStyle(fontSize: 16),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
+                                Row(
+                                  children: [
+                                    Text(
+                                      comment['author']!,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: textColor,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      comment['time']!,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: secColor,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
                                 Text(
-                                  comment['author']!,
+                                  comment['text']!,
                                   style: TextStyle(
                                     fontSize: 12,
-                                    fontWeight: FontWeight.w600,
                                     color: textColor,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  comment['time']!,
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: secColor,
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              comment['text']!,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: textColor,
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                )),
+                    )),
               ],
             ),
           ),

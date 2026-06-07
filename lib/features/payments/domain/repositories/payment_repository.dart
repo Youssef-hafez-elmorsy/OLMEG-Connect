@@ -1,5 +1,6 @@
 import 'package:dartz/dartz.dart';
 import 'package:olmeg_connect/core/errors/failures.dart';
+import 'package:olmeg_connect/features/payments/domain/entities/paymob_checkout_session.dart';
 import 'package:olmeg_connect/features/payments/domain/entities/payment_entity.dart';
 
 abstract class PaymentRepository {
@@ -12,5 +13,9 @@ abstract class PaymentRepository {
   Future<Either<Failure, void>> updatePaymentStatus(
     String paymentId,
     String status,
+  );
+
+  Future<Either<Failure, PaymobCheckoutSession>> startPaymobCheckout(
+    String orderId,
   );
 }

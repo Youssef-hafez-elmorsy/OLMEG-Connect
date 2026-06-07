@@ -31,7 +31,7 @@ class ProductRepositoryImpl implements ProductRepository {
 
   @override
   Future<Either<Failure, void>> addProduct({
-    required ProductEntity product, 
+    required ProductEntity product,
     File? imageFile,
     Uint8List? imageBytes,
   }) async {
@@ -47,7 +47,8 @@ class ProductRepositoryImpl implements ProductRepository {
         sellerName: product.sellerName,
         createdAt: product.createdAt,
       );
-      await _dataSource.addProduct(product: model, imageFile: imageFile, imageBytes: imageBytes);
+      await _dataSource.addProduct(
+          product: model, imageFile: imageFile, imageBytes: imageBytes);
       return const Right(null);
     } catch (_) {
       return const Left(ServerFailure('Failed to add product.'));

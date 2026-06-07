@@ -1,5 +1,6 @@
 import 'package:dartz/dartz.dart';
 import 'package:olmeg_connect/core/errors/failures.dart';
+import 'package:olmeg_connect/features/payments/domain/entities/paymob_checkout_session.dart';
 import 'package:olmeg_connect/features/payments/domain/entities/payment_entity.dart';
 import 'package:olmeg_connect/features/payments/domain/repositories/payment_repository.dart';
 import 'package:olmeg_connect/features/payments/data/datasources/payment_remote_datasource.dart';
@@ -51,6 +52,17 @@ class PaymentRepositoryImpl implements PaymentRepository {
     try {
       await remoteDataSource.updatePaymentStatus(paymentId, status);
       return const Right(null);
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, PaymobCheckoutSession>> startPaymobCheckout(
+    String orderId,
+  ) async {
+    try {
+      return Right(await remoteDataSource.startPaymobCheckout(orderId));
     } catch (e) {
       return Left(ServerFailure(e.toString()));
     }

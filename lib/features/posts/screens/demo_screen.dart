@@ -1,3 +1,5 @@
+// ignore_for_file: prefer_const_constructors
+
 import 'package:flutter/material.dart';
 import 'package:olmeg_connect/features/posts/models/post_model.dart';
 import 'package:olmeg_connect/features/posts/widgets/post_card.dart';
@@ -17,7 +19,9 @@ class DemoScreen extends StatelessWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: () {},
+            onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Demo content refreshed.')),
+            ),
             tooltip: 'Refresh',
           ),
         ],
@@ -35,7 +39,7 @@ class DemoScreen extends StatelessWidget {
 
   Widget _buildInfoCard(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    
+
     return Card(
       color: colorScheme.primaryContainer,
       child: Padding(
@@ -47,11 +51,12 @@ class DemoScreen extends StatelessWidget {
               children: [
                 Icon(Icons.info_outline, color: colorScheme.onPrimaryContainer),
                 const SizedBox(width: 8),
-                Text('🎮 وضع التجربة', style: TextStyle(
-                  color: colorScheme.onPrimaryContainer,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                )),
+                Text('🎮 وضع التجربة',
+                    style: TextStyle(
+                      color: colorScheme.onPrimaryContainer,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    )),
               ],
             ),
             const SizedBox(height: 12),
@@ -94,13 +99,14 @@ class DemoScreen extends StatelessWidget {
           style: Theme.of(context).textTheme.titleLarge,
         ),
         const SizedBox(height: 16),
-        
+
         // Post 1 - Simple text
         _buildDemoPost(
           context,
           authorName: 'أحمد محمد',
           authorColor: '0xFFE53935',
-          text: 'مرحباً! هذا منشور تجريبي يوضح كيف يعمل التطبيق. يمكنك رؤية زر المشاركة في أعلى المنشور بجانب القائمة! 👆',
+          text:
+              'مرحباً! هذا منشور تجريبي يوضح كيف يعمل التطبيق. يمكنك رؤية زر المشاركة في أعلى المنشور بجانب القائمة! 👆',
           feeling: '😊 Happy',
           hoursAgo: 2,
           audience: 'public',
@@ -116,7 +122,8 @@ class DemoScreen extends StatelessWidget {
           authorName: 'سارة علي',
           authorColor: '0xFF5E35B1',
           text: 'منظر جميل من الأعلى! 🌄',
-          imageUrl: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800',
+          imageUrl:
+              'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800',
           hoursAgo: 5,
           audience: 'friends',
           likes: 156,
@@ -208,7 +215,10 @@ class DemoScreen extends StatelessWidget {
       imageURLs: images,
       audience: audience,
       createdAt: DateTime.now().subtract(Duration(hours: hoursAgo)),
-      reactions: {'like': ['user1', 'user2', 'user3'], 'love': ['user4']},
+      reactions: {
+        'like': ['user1', 'user2', 'user3'],
+        'love': ['user4']
+      },
       commentCount: comments,
     );
 

@@ -23,7 +23,8 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
             icon: const Icon(Icons.search),
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Search functionality coming soon')),
+                const SnackBar(
+                    content: Text('Search functionality coming soon')),
               );
             },
             tooltip: 'Search',
@@ -94,9 +95,13 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.shopping_bag_outlined, size: 64, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                Icon(Icons.shopping_bag_outlined,
+                    size: 64,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant),
                 const SizedBox(height: 16),
-                Text('No $_filter items available', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                Text('No $_filter items available',
+                    style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant)),
               ],
             ),
           );
@@ -129,7 +134,8 @@ class _FilterChip extends StatelessWidget {
   final bool isSelected;
   final VoidCallback onTap;
 
-  const _FilterChip({required this.label, required this.isSelected, required this.onTap});
+  const _FilterChip(
+      {required this.label, required this.isSelected, required this.onTap});
 
   @override
   Widget build(BuildContext context) {

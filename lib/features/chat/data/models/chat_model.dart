@@ -10,6 +10,7 @@ class ChatModel {
   final String sellerName;
   final List<Map<String, dynamic>> messages;
   final List<String> participants;
+  final List<String> hiddenFor;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -23,6 +24,7 @@ class ChatModel {
     required this.sellerName,
     required this.messages,
     required this.participants,
+    this.hiddenFor = const [],
     required this.createdAt,
     required this.updatedAt,
   });
@@ -37,8 +39,12 @@ class ChatModel {
       buyerName: data['buyerName'] ?? '',
       sellerId: data['sellerId'] ?? '',
       sellerName: data['sellerName'] ?? '',
-      messages: (data['messages'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? [],
-      participants: (data['participants'] as List<dynamic>?)?.cast<String>() ?? [],
+      messages:
+          (data['messages'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ??
+              [],
+      participants:
+          (data['participants'] as List<dynamic>?)?.cast<String>() ?? [],
+      hiddenFor: (data['hiddenFor'] as List<dynamic>?)?.cast<String>() ?? [],
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
@@ -54,6 +60,7 @@ class ChatModel {
       'sellerName': sellerName,
       'messages': messages,
       'participants': participants,
+      'hiddenFor': hiddenFor,
       'createdAt': createdAt,
       'updatedAt': updatedAt,
     };

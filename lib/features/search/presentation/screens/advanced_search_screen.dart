@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:olmeg_connect/core/localization/app_localizations.dart';
 import 'package:olmeg_connect/core/theme/app_theme.dart';
+import 'package:olmeg_connect/features/analytics/presentation/providers/analytics_provider.dart';
+import 'package:olmeg_connect/features/auth/presentation/providers/auth_provider.dart';
 import 'package:olmeg_connect/features/search/domain/entities/search_filter_entity.dart';
 import 'package:olmeg_connect/features/search/presentation/providers/search_provider.dart';
 import 'package:olmeg_connect/features/products/presentation/widgets/product_card.dart';
@@ -17,9 +21,13 @@ class _AdvancedSearchScreenState extends ConsumerState<AdvancedSearchScreen> {
   late TextEditingController _searchController;
   late TextEditingController _minPriceController;
   late TextEditingController _maxPriceController;
+  late TextEditingController _cityController;
   String? _selectedCategory;
   String? _selectedCondition;
-  String _sortBy = 'newest';
+  double? _minRating;
+  bool _onlyAvailable = false;
+  String _sortBy = 'relevance';
+  String? _lastImpressionKey;
 
   @override
   void initState() {
@@ -27,6 +35,7 @@ class _AdvancedSearchScreenState extends ConsumerState<AdvancedSearchScreen> {
     _searchController = TextEditingController();
     _minPriceController = TextEditingController();
     _maxPriceController = TextEditingController();
+    _cityController = TextEditingController();
   }
 
   @override
@@ -34,6 +43,7 @@ class _AdvancedSearchScreenState extends ConsumerState<AdvancedSearchScreen> {
     _searchController.dispose();
     _minPriceController.dispose();
     _maxPriceController.dispose();
+    _cityController.dispose();
     super.dispose();
   }
 
@@ -49,10 +59,108 @@ class _AdvancedSearchScreenState extends ConsumerState<AdvancedSearchScreen> {
           : double.tryParse(_maxPriceController.text),
       category: _selectedCategory,
       condition: _selectedCondition,
+      location: _cityController.text.trim().isEmpty
+          ? null
+          : _cityController.text.trim(),
+      minRating: _minRating,
+      onlyAvailable: _onlyAvailable,
       sortBy: _sortBy,
     );
 
+    final user = ref.read(authStateProvider).value;
+    if (user != null && _searchController.text.trim().isNotEmpty) {
+      ref
+          .read(analyticsServiceProvider)
+          .trackSearchPerformed(user.id, _searchController.text.trim())
+          .catchError((_) {});
+    }
     ref.read(searchResultsProvider(filter));
+  }
+
+  Future<void> _saveSearchAlert() async {
+    final user = ref.read(authStateProvider).value;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sign in to save search alerts')),
+      );
+      return;
+    }
+
+    final query = _searchController.text.trim();
+    final hasFilter = query.isNotEmpty ||
+        _minPriceController.text.trim().isNotEmpty ||
+        _maxPriceController.text.trim().isNotEmpty ||
+        _selectedCategory != null ||
+        _selectedCondition != null ||
+        _cityController.text.trim().isNotEmpty ||
+        _minRating != null ||
+        _onlyAvailable;
+    if (!hasFilter) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Add a query or filter before saving')),
+      );
+      return;
+    }
+
+    await FirebaseFirestore.instance.collection('saved_searches').add({
+      'userId': user.id,
+      'query': query,
+      'minPrice': double.tryParse(_minPriceController.text.trim()),
+      'maxPrice': double.tryParse(_maxPriceController.text.trim()),
+      'category': _selectedCategory,
+      'condition': _selectedCondition,
+      'city': _cityController.text.trim(),
+      'minRating': _minRating,
+      'onlyAvailable': _onlyAvailable,
+      'sortBy': _sortBy,
+      'alertEnabled': true,
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Search alert saved')),
+    );
+  }
+
+  void _recordSearchImpression(int resultCount) {
+    final user = ref.read(authStateProvider).value;
+    if (user == null) return;
+    final query = _searchController.text.trim();
+    final city = _cityController.text.trim();
+    if (query.isEmpty &&
+        city.isEmpty &&
+        !_onlyAvailable &&
+        _minRating == null) {
+      return;
+    }
+    final key = [
+      user.id,
+      query,
+      _minPriceController.text.trim(),
+      _maxPriceController.text.trim(),
+      _selectedCategory ?? '',
+      _selectedCondition ?? '',
+      city,
+      _minRating?.toString() ?? '',
+      _onlyAvailable.toString(),
+      _sortBy,
+      resultCount.toString(),
+    ].join('|');
+    if (_lastImpressionKey == key) return;
+    _lastImpressionKey = key;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref
+          .read(analyticsServiceProvider)
+          .trackSearchResultsViewed(
+            user.id,
+            query: query,
+            resultCount: resultCount,
+            sortBy: _sortBy,
+          )
+          .catchError((_) {});
+    });
   }
 
   @override
@@ -67,15 +175,28 @@ class _AdvancedSearchScreenState extends ConsumerState<AdvancedSearchScreen> {
           : double.tryParse(_maxPriceController.text),
       category: _selectedCategory,
       condition: _selectedCondition,
+      location: _cityController.text.trim().isEmpty
+          ? null
+          : _cityController.text.trim(),
+      minRating: _minRating,
+      onlyAvailable: _onlyAvailable,
       sortBy: _sortBy,
     );
 
     final searchResults = ref.watch(searchResultsProvider(filter));
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Advanced Search'),
+        title: Text(l10n.t('advancedSearch')),
         elevation: 0,
+        actions: [
+          IconButton(
+            tooltip: l10n.t('saveSearchAlert'),
+            icon: const Icon(Icons.notifications_active_outlined),
+            onPressed: _saveSearchAlert,
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -88,7 +209,7 @@ class _AdvancedSearchScreenState extends ConsumerState<AdvancedSearchScreen> {
                   TextField(
                     controller: _searchController,
                     decoration: InputDecoration(
-                      labelText: 'Search products',
+                      labelText: l10n.t('searchProducts'),
                       prefixIcon: const Icon(Icons.search),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -104,7 +225,7 @@ class _AdvancedSearchScreenState extends ConsumerState<AdvancedSearchScreen> {
                           controller: _minPriceController,
                           keyboardType: TextInputType.number,
                           decoration: InputDecoration(
-                            labelText: 'Min Price',
+                            labelText: l10n.t('minPrice'),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
@@ -118,7 +239,7 @@ class _AdvancedSearchScreenState extends ConsumerState<AdvancedSearchScreen> {
                           controller: _maxPriceController,
                           keyboardType: TextInputType.number,
                           decoration: InputDecoration(
-                            labelText: 'Max Price',
+                            labelText: l10n.t('maxPrice'),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
@@ -129,10 +250,52 @@ class _AdvancedSearchScreenState extends ConsumerState<AdvancedSearchScreen> {
                     ],
                   ),
                   const SizedBox(height: AppSpacing.md),
+                  TextField(
+                    controller: _cityController,
+                    textCapitalization: TextCapitalization.words,
+                    decoration: InputDecoration(
+                      labelText: l10n.t('city'),
+                      prefixIcon: const Icon(Icons.location_city_outlined),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    onChanged: (_) => _performSearch(),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(l10n.t('availableNow')),
+                    value: _onlyAvailable,
+                    onChanged: (value) {
+                      setState(() => _onlyAvailable = value);
+                      _performSearch();
+                    },
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  DropdownButtonFormField<double>(
+                    initialValue: _minRating,
+                    decoration: InputDecoration(
+                      labelText: l10n.t('minimumRating'),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 4, child: Text('4 stars & up')),
+                      DropdownMenuItem(value: 3, child: Text('3 stars & up')),
+                      DropdownMenuItem(value: 2, child: Text('2 stars & up')),
+                    ],
+                    onChanged: (value) {
+                      setState(() => _minRating = value);
+                      _performSearch();
+                    },
+                  ),
+                  const SizedBox(height: AppSpacing.md),
                   DropdownButtonFormField<String>(
                     initialValue: _selectedCondition,
                     decoration: InputDecoration(
-                      labelText: 'Condition',
+                      labelText: l10n.t('condition'),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -149,16 +312,19 @@ class _AdvancedSearchScreenState extends ConsumerState<AdvancedSearchScreen> {
                   DropdownButtonFormField<String>(
                     initialValue: _sortBy,
                     decoration: InputDecoration(
-                      labelText: 'Sort By',
+                      labelText: l10n.t('sortBy'),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
                     items: [
+                      'relevance',
                       'newest',
                       'price_low',
                       'price_high',
                       'rating',
+                      'availability',
+                      'discount',
                     ]
                         .map((s) => DropdownMenuItem(
                               value: s,
@@ -183,9 +349,10 @@ class _AdvancedSearchScreenState extends ConsumerState<AdvancedSearchScreen> {
                   child: Text('Error: $error'),
                 ),
                 data: (products) {
+                  _recordSearchImpression(products.length);
                   if (products.isEmpty) {
-                    return const Center(
-                      child: Text('No products found'),
+                    return Center(
+                      child: Text(l10n.noProductsFound),
                     );
                   }
 

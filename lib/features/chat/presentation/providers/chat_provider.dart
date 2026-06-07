@@ -83,6 +83,19 @@ class ChatNotifier extends Notifier<AsyncValue<void>> {
       return e.toString();
     }
   }
+
+  Future<String?> hideChat({
+    required String chatId,
+    required String userId,
+  }) async {
+    try {
+      final ds = ref.read(chatRemoteDataSourceProvider);
+      await ds.hideChatForUser(chatId, userId);
+      return null;
+    } catch (e) {
+      return e.toString();
+    }
+  }
 }
 
 final chatNotifierProvider =

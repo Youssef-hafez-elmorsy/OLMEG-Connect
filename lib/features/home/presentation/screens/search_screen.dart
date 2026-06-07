@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:olmeg_connect/core/localization/app_localizations.dart';
 import 'package:olmeg_connect/core/theme/app_theme.dart';
+import 'package:olmeg_connect/core/utils/navigation_utils.dart';
 import 'package:olmeg_connect/core/utils/currency_formatter.dart';
 import 'package:olmeg_connect/features/products/domain/entities/product_entity.dart';
 
@@ -57,14 +59,15 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           sellerName: data['sellerName'] ?? '',
           createdAt:
               (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-          city: data['location'] ?? '',
+          city: data['city'] ?? data['location'] ?? '',
           isFavorite: false,
         );
       }).where((p) {
         final q = query.toLowerCase();
         return p.title.toLowerCase().contains(q) ||
             p.description.toLowerCase().contains(q) ||
-            p.category.toLowerCase().contains(q);
+            p.category.toLowerCase().contains(q) ||
+            p.city.toLowerCase().contains(q);
       }).toList();
 
       setState(() {
@@ -85,6 +88,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         isDark ? const Color(0xFFF8FAFC) : const Color(0xFF1E293B);
     final hintColor =
         isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -92,14 +96,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         backgroundColor: bgColor,
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: textColor),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => closeOrGo(context),
         ),
         title: TextField(
           controller: _searchCtrl,
           autofocus: true,
           style: TextStyle(color: textColor),
           decoration: InputDecoration(
-            hintText: 'Search products...',
+            hintText: l10n.t('searchProducts'),
             hintStyle: TextStyle(color: hintColor),
             border: InputBorder.none,
             filled: false,
@@ -113,7 +117,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               icon: Icon(Icons.clear, color: hintColor),
               onPressed: () {
                 _searchCtrl.clear();
-                setState(() => _results = []);
+                setState(() {
+                  _results = [];
+                  _query = '';
+                  _isSearching = false;
+                });
               },
             ),
         ],
@@ -137,7 +145,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             Icon(Icons.search, size: 64, color: hintColor),
             const SizedBox(height: AppSpacing.md),
             Text(
-              'Search for products',
+              AppLocalizations.of(context).t('searchForProducts'),
               style: TextStyle(color: hintColor, fontSize: 16),
             ),
           ],

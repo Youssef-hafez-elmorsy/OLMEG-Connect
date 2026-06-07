@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:olmeg_connect/core/localization/app_localizations.dart';
 import 'package:olmeg_connect/core/theme/app_theme.dart';
 import 'package:olmeg_connect/features/notifications/presentation/providers/notification_provider.dart';
 import 'package:olmeg_connect/features/auth/presentation/providers/auth_provider.dart';
@@ -10,17 +11,18 @@ class NotificationsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authStateProvider);
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Notifications'),
+        title: Text(l10n.t('notificationsTitle')),
         elevation: 0,
       ),
       body: authState.when(
         data: (user) {
           if (user == null) {
-            return const Center(
-              child: Text('Please sign in to view notifications'),
+            return Center(
+              child: Text(l10n.t('signInNotifications')),
             );
           }
 
@@ -41,7 +43,7 @@ class NotificationsScreen extends ConsumerWidget {
                     color: AppColors.error,
                   ),
                   const SizedBox(height: AppSpacing.md),
-                  Text('Error: $error'),
+                  Text(l10n.errorWithMessage(error)),
                 ],
               ),
             ),
@@ -51,15 +53,15 @@ class NotificationsScreen extends ConsumerWidget {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.notifications_none,
                         size: 64,
                         color: AppColors.textSecondary,
                       ),
                       const SizedBox(height: AppSpacing.md),
-                      const Text(
-                        'No notifications yet',
-                        style: TextStyle(
+                      Text(
+                        l10n.t('noNotificationsYet'),
+                        style: const TextStyle(
                           fontSize: 16,
                           color: AppColors.textSecondary,
                         ),
@@ -97,9 +99,8 @@ class NotificationsScreen extends ConsumerWidget {
                             ),
                       onTap: () {
                         if (!notification.read) {
-                          ref
-                              .read(markNotificationAsReadProvider(
-                                  notification.id));
+                          ref.read(
+                              markNotificationAsReadProvider(notification.id));
                         }
                       },
                     ),
@@ -113,7 +114,7 @@ class NotificationsScreen extends ConsumerWidget {
           child: CircularProgressIndicator(),
         ),
         error: (error, stack) => Center(
-          child: Text('Error: $error'),
+          child: Text(l10n.errorWithMessage(error)),
         ),
       ),
     );

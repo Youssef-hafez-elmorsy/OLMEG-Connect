@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -13,7 +16,6 @@ class UserProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authStateProvider).value;
-    final isAdmin = user?.isAdmin ?? false;
     final l10n = AppLocalizations.of(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isDark ? const Color(0xFF0F172A) : const Color(0xFFF5F5F7);
@@ -32,8 +34,12 @@ class UserProfileScreen extends ConsumerWidget {
         title: Text(l10n.profile, style: TextStyle(color: textColor)),
         actions: [
           IconButton(
-            icon: Icon(Icons.camera_alt, color: textColor),
-            onPressed: () => context.push('/edit-profile'),
+            tooltip: 'Edit profile',
+            icon: Icon(Icons.edit_outlined, color: textColor),
+            onPressed: () async {
+              await context.push('/edit-profile');
+              ref.invalidate(authStateProvider);
+            },
           ),
           IconButton(
             icon: Icon(Icons.refresh, color: textColor),
@@ -58,18 +64,10 @@ class UserProfileScreen extends ConsumerWidget {
               ),
               child: Column(
                 children: [
-                  CircleAvatar(
-                    radius: 50,
-                    backgroundColor: AppColors.primary,
-                    child: Text(
-                      user?.name.isNotEmpty == true
-                          ? user!.name[0].toUpperCase()
-                          : 'U',
-                      style: TextStyle(
-                          fontSize: 36,
-                          fontWeight: FontWeight.bold,
-                          color: bgColor),
-                    ),
+                  _ProfileAvatar(
+                    photoUrl: user?.photoUrl,
+                    name: user?.name ?? '',
+                    backgroundColor: bgColor,
                   ),
                   const SizedBox(height: AppSpacing.md),
                   Text(
@@ -116,6 +114,14 @@ class UserProfileScreen extends ConsumerWidget {
               secColor: secColor,
               onTap: () => context.push('/my-products'),
             ),
+            if (user?.isApprovedMerchant == true)
+              _MenuItem(
+                icon: Icons.storefront,
+                title: 'Seller Center',
+                textColor: textColor,
+                secColor: secColor,
+                onTap: () => context.push('/seller'),
+              ),
             _MenuItem(
               icon: Icons.favorite,
               title: l10n.favorites,
@@ -128,7 +134,7 @@ class UserProfileScreen extends ConsumerWidget {
               title: l10n.orderHistory,
               textColor: textColor,
               secColor: secColor,
-              onTap: () {},
+              onTap: () => context.push('/orders'),
             ),
             _MenuItem(
               icon: Icons.settings,
@@ -142,31 +148,8 @@ class UserProfileScreen extends ConsumerWidget {
               title: l10n.helpSupport,
               textColor: textColor,
               secColor: secColor,
-              onTap: () {},
+              onTap: () => _showHelpSupportMessage(context),
             ),
-            if (isAdmin) ...[
-              _MenuItem(
-                icon: Icons.admin_panel_settings,
-                title: 'Admin Dashboard',
-                textColor: textColor,
-                secColor: secColor,
-                onTap: () => context.push('/admin'),
-              ),
-              _MenuItem(
-                icon: Icons.campaign,
-                title: 'Admin Notifications',
-                textColor: textColor,
-                secColor: secColor,
-                onTap: () => context.push('/admin/notify'),
-              ),
-              _MenuItem(
-                icon: Icons.verified_user,
-                title: 'Product Moderation',
-                textColor: textColor,
-                secColor: secColor,
-                onTap: () => context.push('/admin/moderation'),
-              ),
-            ],
             const SizedBox(height: AppSpacing.lg),
             SizedBox(
               width: double.infinity,
@@ -234,6 +217,16 @@ class UserProfileScreen extends ConsumerWidget {
     );
   }
 
+  void _showHelpSupportMessage(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Help & support is not available in-app yet. Please contact the marketplace team from your order or chat details for now.',
+        ),
+      ),
+    );
+  }
+
   Future<void> _deleteAccount(BuildContext context, WidgetRef ref) async {
     try {
       final currentUser = FirebaseAuth.instance.currentUser;
@@ -287,6 +280,62 @@ class _StatItem extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+class _ProfileAvatar extends StatelessWidget {
+  final String? photoUrl;
+  final String name;
+  final Color backgroundColor;
+
+  const _ProfileAvatar({
+    required this.photoUrl,
+    required this.name,
+    required this.backgroundColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final image = _imageProvider(photoUrl);
+    return Container(
+      width: 108,
+      height: 108,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: AppColors.primary,
+        border: Border.all(
+          color: AppColors.primary.withValues(alpha: 0.24),
+          width: 4,
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: image == null
+          ? Center(
+              child: Text(
+                name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : 'U',
+                style: TextStyle(
+                  fontSize: 38,
+                  fontWeight: FontWeight.bold,
+                  color: backgroundColor,
+                ),
+              ),
+            )
+          : Image(image: image, fit: BoxFit.cover),
+    );
+  }
+
+  ImageProvider? _imageProvider(String? rawUrl) {
+    final value = rawUrl?.trim();
+    if (value == null || value.isEmpty) return null;
+    if (value.startsWith('data:image')) {
+      try {
+        return MemoryImage(
+            Uint8List.fromList(base64Decode(value.split(',').last)));
+      } catch (_) {
+        return null;
+      }
+    }
+    return NetworkImage(value);
   }
 }
 

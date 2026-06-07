@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/app_brand.dart';
 import '../../../settings/providers/settings_provider.dart';
 import '../providers/auth_provider.dart';
 
@@ -138,46 +139,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xxl),
-                Center(
-                  child: Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(AppRadius.lg),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.primary.withValues(alpha: 0.4),
-                          blurRadius: 20,
-                          spreadRadius: 4,
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.shopping_bag_rounded,
-                      color: AppColors.background,
-                      size: 44,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xl),
-                Center(
-                  child: Text(
-                    l10n.appName,
-                    style: const TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ),
-                Center(
-                  child: Text(
-                    l10n.marketplaceTagline,
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 14,
-                    ),
+                const Center(
+                  child: AppBrandLockup(
+                    centered: true,
+                    logoSize: 84,
+                    titleSize: 28,
+                    taglineSize: 14,
+                    titleColor: AppColors.primary,
+                    taglineColor: AppColors.textSecondary,
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xxl),

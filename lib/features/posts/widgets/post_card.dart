@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:timeago/timeago.dart' as timeago;
+import 'package:olmeg_connect/core/constants/app_constants.dart';
+import 'package:olmeg_connect/core/localization/app_localizations.dart';
+import 'package:olmeg_connect/core/services/promotion_request_service.dart';
 import 'package:olmeg_connect/core/utils/currency_formatter.dart';
+import 'package:olmeg_connect/features/chat/presentation/providers/chat_provider.dart';
 import 'package:olmeg_connect/core/widgets/fullscreen_image_gallery.dart';
 import 'package:olmeg_connect/features/posts/models/post_model.dart';
+import 'package:olmeg_connect/features/posts/screens/post_comments_screen.dart';
 import 'package:olmeg_connect/features/posts/services/firestore_service.dart';
 import 'package:olmeg_connect/features/posts/services/user_service.dart';
 import 'package:olmeg_connect/features/posts/widgets/avatar_widget.dart';
@@ -28,7 +34,7 @@ class PostCard extends ConsumerStatefulWidget {
 }
 
 class _PostCardState extends ConsumerState<PostCard> {
-  bool _showComments = false;
+  final bool _showComments = false;
   bool _liked = false;
   int _commentsCount = 0;
 
@@ -49,9 +55,13 @@ class _PostCardState extends ConsumerState<PostCard> {
         user != null ? widget.post.getActiveReaction(user.userId) : '';
 
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      elevation: 0,
+      color: postColorScheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: BorderSide(color: postColorScheme.outlineVariant),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -95,9 +105,10 @@ class _PostCardState extends ConsumerState<PostCard> {
   Widget _buildHeader(BuildContext context, UserIdentity? user) {
     final post = widget.post;
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context);
 
     return Padding(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -158,15 +169,20 @@ class _PostCardState extends ConsumerState<PostCard> {
               ),
               Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
                   color: post.isMadePost
-                      ? Colors.green.shade100
-                      : Colors.orange.shade100,
-                  borderRadius: BorderRadius.circular(12),
+                      ? Colors.green.withValues(alpha: 0.12)
+                      : Colors.orange.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                    color: post.isMadePost
+                        ? Colors.green.withValues(alpha: 0.28)
+                        : Colors.orange.withValues(alpha: 0.28),
+                  ),
                 ),
                 child: Text(
-                  post.displayType,
+                  l10n.postTypeLabel(post.postType ?? 'made'),
                   style: TextStyle(
                     color: post.isMadePost
                         ? Colors.green.shade800
@@ -178,48 +194,58 @@ class _PostCardState extends ConsumerState<PostCard> {
               ),
             ],
           ),
-          if (post.displayPrice != null) ...[
+          if (post.displayPrice != null || post.category != null) ...[
             const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                CurrencyFormatter.egp(
-                  double.tryParse(post.displayPrice ?? '0') ?? 0,
-                ),
-                style: TextStyle(
-                  color: colorScheme.onPrimaryContainer,
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (post.displayPrice != null)
+                  _PostMetaPill(
+                    icon: Icons.sell_outlined,
+                    label: CurrencyFormatter.egp(
+                      double.tryParse(post.displayPrice ?? '0') ?? 0,
+                    ),
+                  ),
+                if (post.category != null && post.category!.isNotEmpty)
+                  _PostMetaPill(
+                    icon: Icons.category_outlined,
+                    label: l10n.categoryLabel(post.category!),
+                  ),
+              ],
             ),
           ],
           if (post.title != null && post.title!.isNotEmpty) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             Text(
               post.title!,
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(fontWeight: FontWeight.bold),
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0,
+                  ),
             ),
           ],
-          if (post.category != null && post.category!.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                post.category!,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
+          if (post.location != null && post.location!.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(
+                  Icons.place_outlined,
+                  size: 16,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    post.location!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                  ),
+                ),
+              ],
             ),
           ],
           const SizedBox(height: 10),
@@ -230,47 +256,57 @@ class _PostCardState extends ConsumerState<PostCard> {
                 onSelected: (value) => _handleMenuAction(value, context),
                 itemBuilder: (context) => [
                   if (user?.userId == post.authorId) ...[
-                    const PopupMenuItem(
+                    PopupMenuItem(
+                      value: 'sponsor',
+                      child: Row(
+                        children: [
+                          const Icon(Icons.campaign_outlined),
+                          const SizedBox(width: 8),
+                          Text(l10n.t('sponsorPost')),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem(
                       value: 'delete',
                       child: Row(
                         children: [
-                          Icon(Icons.delete, color: Colors.red),
-                          SizedBox(width: 8),
+                          const Icon(Icons.delete, color: Colors.red),
+                          const SizedBox(width: 8),
                           Text(
-                            'Delete Post',
-                            style: TextStyle(color: Colors.red),
+                            l10n.t('deletePost'),
+                            style: const TextStyle(color: Colors.red),
                           ),
                         ],
                       ),
                     ),
                   ] else ...[
-                    const PopupMenuItem(
+                    PopupMenuItem(
                       value: 'save',
                       child: Row(
                         children: [
-                          Icon(Icons.bookmark_border),
-                          SizedBox(width: 8),
-                          Text('Save Post'),
+                          const Icon(Icons.bookmark_border),
+                          const SizedBox(width: 8),
+                          Text(l10n.t('savePost')),
                         ],
                       ),
                     ),
-                    const PopupMenuItem(
+                    PopupMenuItem(
                       value: 'copy',
                       child: Row(
                         children: [
-                          Icon(Icons.link),
-                          SizedBox(width: 8),
-                          Text('Copy Link'),
+                          const Icon(Icons.link),
+                          const SizedBox(width: 8),
+                          Text(l10n.t('copyLink')),
                         ],
                       ),
                     ),
-                    const PopupMenuItem(
+                    PopupMenuItem(
                       value: 'report',
                       child: Row(
                         children: [
-                          Icon(Icons.flag, color: Colors.orange),
-                          SizedBox(width: 8),
-                          Text('Report Post'),
+                          const Icon(Icons.flag, color: Colors.orange),
+                          const SizedBox(width: 8),
+                          Text(l10n.t('reportPost')),
                         ],
                       ),
                     ),
@@ -297,7 +333,7 @@ class _PostCardState extends ConsumerState<PostCard> {
                       ),
                       const SizedBox(width: 5),
                       Text(
-                        'Share',
+                        l10n.t('share'),
                         style: TextStyle(
                           color: colorScheme.onPrimary,
                           fontSize: 13,
@@ -317,9 +353,10 @@ class _PostCardState extends ConsumerState<PostCard> {
 
   Widget _buildContent(BuildContext context, TextTheme textTheme) {
     final post = widget.post;
+    final l10n = AppLocalizations.of(context);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: post.bgColor != null
           ? Container(
               height: 200,
@@ -329,7 +366,7 @@ class _PostCardState extends ConsumerState<PostCard> {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(16),
               ),
               padding: const EdgeInsets.all(16),
               child: Center(
@@ -347,13 +384,13 @@ class _PostCardState extends ConsumerState<PostCard> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(post.text,
-                    style: textTheme.bodyLarge,
+                    style: textTheme.bodyLarge?.copyWith(height: 1.45),
                     maxLines: _liked ? null : 3,
                     overflow: _liked ? null : TextOverflow.ellipsis),
                 if (post.text.length > 100 && !_liked)
                   TextButton(
                       onPressed: () => setState(() => _liked = true),
-                      child: const Text('See more')),
+                      child: Text(l10n.t('seeMore'))),
               ],
             ),
     );
@@ -361,31 +398,36 @@ class _PostCardState extends ConsumerState<PostCard> {
 
   Widget _buildActionButtons(
       BuildContext context, String? currentUserId, String userActiveReaction) {
+    final l10n = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      child: Wrap(
+        alignment: WrapAlignment.spaceEvenly,
+        runSpacing: 4,
         children: [
           _ActionButton(
             icon: Icons.thumb_up,
-            label: userActiveReaction.isNotEmpty ? 'Liked' : 'Like',
+            label: userActiveReaction.isNotEmpty
+                ? l10n.t('liked')
+                : l10n.t('like'),
             isActive: userActiveReaction.isNotEmpty,
             onTap: () => _toggleReaction('like'),
           ),
           _ActionButton(
             icon: Icons.chat_bubble_outline,
-            label: 'Comment',
-            isActive: _showComments,
-            onTap: () => setState(() {
-              _showComments = !_showComments;
-              if (_showComments && widget.onCommentTap != null) {
-                widget.onCommentTap!();
-              }
-            }),
+            label: l10n.t('comment'),
+            isActive: false,
+            onTap: () => _openComments(context),
+          ),
+          _ActionButton(
+            icon: Icons.forum_outlined,
+            label: l10n.chat,
+            isActive: false,
+            onTap: () => _joinPostChat(context, currentUserId),
           ),
           _ActionButton(
             icon: Icons.share,
-            label: 'Share',
+            label: l10n.t('share'),
             isActive: false,
             onTap: () => _showShareSheet(context),
           ),
@@ -397,26 +439,87 @@ class _PostCardState extends ConsumerState<PostCard> {
   Widget _buildCommentsSection(BuildContext context) {
     return _CommentSection(
       postId: widget.post.id,
+      post: widget.post,
     );
+  }
+
+  void _openComments(BuildContext context) {
+    widget.onCommentTap?.call();
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => PostCommentsScreen(post: widget.post),
+      ),
+    );
+  }
+
+  Future<void> _joinPostChat(
+      BuildContext context, String? currentUserId) async {
+    if (currentUserId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context).t('pleaseSignInToChat')),
+        ),
+      );
+      return;
+    }
+    if (currentUserId == widget.post.authorId) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(AppLocalizations.of(context).t('youOwnThisPost'))),
+      );
+      return;
+    }
+    final user = ref.read(currentUserProvider).value;
+    final buyerName = user?.displayName ?? 'Marketplace user';
+    final chatId = await ref.read(chatNotifierProvider.notifier).createChat(
+          productId: 'post_${widget.post.id}',
+          productTitle: widget.post.title?.trim().isNotEmpty == true
+              ? widget.post.title!.trim()
+              : AppLocalizations.of(context).t('postChat'),
+          buyerId: currentUserId,
+          buyerName: buyerName,
+          sellerId: widget.post.authorId,
+          sellerName: widget.post.authorName,
+        );
+    if (chatId == null || !context.mounted) return;
+    final chat =
+        await ref.read(chatRemoteDataSourceProvider).getChatById(chatId);
+    if (chat != null && context.mounted) {
+      context.push('/chat/$chatId', extra: chat);
+    }
   }
 
   void _handleMenuAction(String action, BuildContext context) async {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context);
     switch (action) {
+      case 'sponsor':
+        final user = ref.read(currentUserProvider).value;
+        if (user == null) return;
+        await PromotionRequestService.showPromotionSheet(
+          context: context,
+          ownerId: user.userId,
+          targetId: widget.post.id,
+          targetTitle: widget.post.title?.trim().isNotEmpty == true
+              ? widget.post.title!.trim()
+              : widget.post.text,
+          targetType: 'post',
+        );
+        break;
       case 'delete':
         final confirm = await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Text('Delete this post?'),
-            content: const Text('This cannot be undone.'),
+            title: Text(l10n.t('deleteThisPost')),
+            content: Text(l10n.t('cannotBeUndone')),
             actions: [
               TextButton(
                   onPressed: () => Navigator.pop(context, false),
-                  child: const Text('Cancel')),
+                  child: Text(l10n.cancel)),
               TextButton(
                   onPressed: () => Navigator.pop(context, true),
                   style: TextButton.styleFrom(foregroundColor: Colors.red),
-                  child: const Text('Delete')),
+                  child: Text(l10n.delete)),
             ],
           ),
         );
@@ -425,30 +528,37 @@ class _PostCardState extends ConsumerState<PostCard> {
             await FirestoreService.deletePost(widget.post.id);
             if (context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Post deleted successfully')));
+                SnackBar(content: Text(l10n.t('postDeletedSuccessfully'))),
+              );
               widget.onDelete?.call();
             }
           } catch (e) {
             if (context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text('Error: $e'),
+                  content: Text(l10n.errorWithMessage(e)),
                   backgroundColor: colorScheme.error));
             }
           }
         }
         break;
       case 'copy':
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Link copied!')));
+        await Clipboard.setData(
+          ClipboardData(text: AppConstants.postShareUrl(widget.post.id)),
+        );
+        if (context.mounted) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text(l10n.t('linkCopied'))));
+        }
         break;
       case 'report':
         ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Post reported')));
+            .showSnackBar(SnackBar(content: Text(l10n.t('postReported'))));
         break;
     }
   }
 
   void _toggleReaction(String reactionType) async {
+    final l10n = AppLocalizations.of(context);
     final userAsync = ref.read(currentUserProvider);
     final user = userAsync.value;
     if (user == null) return;
@@ -461,12 +571,13 @@ class _PostCardState extends ConsumerState<PostCard> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Error: $e')));
+            .showSnackBar(SnackBar(content: Text(l10n.errorWithMessage(e))));
       }
     }
   }
 
   void _showShareSheet(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     showModalBottomSheet(
       context: context,
       builder: (context) => Column(
@@ -474,24 +585,25 @@ class _PostCardState extends ConsumerState<PostCard> {
         children: [
           ListTile(
               leading: const Icon(Icons.share),
-              title: const Text('Share Now'),
+              title: Text(l10n.t('shareNow')),
               onTap: () {
-                final link =
-                    'https://olmeg-connect.web.app/posts/${widget.post.id}';
+                final link = AppConstants.postShareUrl(widget.post.id);
                 Clipboard.setData(ClipboardData(text: link));
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Link copied to clipboard!')));
+                  SnackBar(content: Text(l10n.t('linkCopiedToClipboard'))),
+                );
               }),
           ListTile(
               leading: const Icon(Icons.link),
-              title: const Text('Copy Link'),
+              title: Text(l10n.t('copyLink')),
               onTap: () {
-                final link = 'https://olmeg-connect.web.app/#/feed';
+                final link = AppConstants.feedShareUrl();
                 Clipboard.setData(ClipboardData(text: link));
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Link copied!')));
+                  SnackBar(content: Text(l10n.t('linkCopied'))),
+                );
               }),
         ],
       ),
@@ -519,7 +631,13 @@ class _ActionButton extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+        decoration: BoxDecoration(
+          color: isActive
+              ? colorScheme.primary.withValues(alpha: 0.1)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(999),
+        ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -547,6 +665,42 @@ class _ActionButton extends StatelessWidget {
   }
 }
 
+class _PostMetaPill extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _PostMetaPill({
+    required this.icon,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: colorScheme.primaryContainer.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: colorScheme.onPrimaryContainer),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onPrimaryContainer,
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 final currentUserProvider = FutureProvider<UserIdentity?>((ref) async {
   final userService = UserService();
   return await userService.getUser();
@@ -554,8 +708,9 @@ final currentUserProvider = FutureProvider<UserIdentity?>((ref) async {
 
 class _CommentSection extends StatefulWidget {
   final String postId;
+  final PostModel post;
 
-  const _CommentSection({required this.postId});
+  const _CommentSection({required this.postId, required this.post});
 
   @override
   State<_CommentSection> createState() => _CommentSectionState();
@@ -574,6 +729,7 @@ class _CommentSectionState extends State<_CommentSection> {
   Widget build(BuildContext context) {
     final commentsStream = FirestoreService.getCommentsStream(widget.postId);
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
 
     return Column(
       children: [
@@ -597,7 +753,7 @@ class _CommentSectionState extends State<_CommentSection> {
                 child: TextField(
                   controller: _commentController,
                   decoration: InputDecoration(
-                    hintText: 'Write a comment...',
+                    hintText: l10n.t('writeComment'),
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(20)),
                     contentPadding:
@@ -619,8 +775,10 @@ class _CommentSectionState extends State<_CommentSection> {
             }
             final comments = snapshot.data ?? [];
             if (comments.isEmpty) {
-              return const Padding(
-                  padding: EdgeInsets.all(16), child: Text('No comments yet'));
+              return Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(l10n.t('noCommentsYet')),
+              );
             }
             final displayComments = comments.take(3).toList();
             final remaining = comments.length - 3;
@@ -630,14 +788,12 @@ class _CommentSectionState extends State<_CommentSection> {
                     .map((comment) => _buildCommentTile(context, comment)),
                 if (remaining > 0)
                   TextButton(
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                            content:
-                                Text('Loading $remaining more comments...')),
-                      );
-                    },
-                    child: Text('View $remaining more comments'),
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => PostCommentsScreen(post: widget.post),
+                      ),
+                    ),
+                    child: Text(l10n.postMoreComments(remaining)),
                   ),
               ],
             );
@@ -688,7 +844,9 @@ class _CommentSectionState extends State<_CommentSection> {
     if (!mounted) return;
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please sign in to comment')),
+        SnackBar(
+          content: Text(AppLocalizations.of(context).t('signInToComment')),
+        ),
       );
       return;
     }
@@ -707,13 +865,15 @@ class _CommentSectionState extends State<_CommentSection> {
       _commentController.clear();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Comment added!')),
+          SnackBar(
+              content: Text(AppLocalizations.of(context).t('commentAdded'))),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+          SnackBar(
+              content: Text(AppLocalizations.of(context).errorWithMessage(e))),
         );
       }
     }

@@ -10,7 +10,8 @@ class UIShowcaseScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isDark ? const Color(0xFF0F172A) : const Color(0xFFF5F5F7);
-    final textColor = isDark ? const Color(0xFFF8FAFC) : const Color(0xFF1E293B);
+    final textColor =
+        isDark ? const Color(0xFFF8FAFC) : const Color(0xFF1E293B);
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -100,7 +101,7 @@ class UIShowcaseScreen extends StatelessWidget {
                     },
                   ),
                   const SizedBox(height: 20),
-                  EnhancedPostCard(
+                  const EnhancedPostCard(
                     authorName: 'Mike Chen',
                     authorAvatar: '👨',
                     postText:

@@ -37,7 +37,8 @@ class SubcategoryEntity extends Equatable {
     required this.categoryId,
   });
 
-  factory SubcategoryEntity.fromFirestore(String id, Map<String, dynamic> data) {
+  factory SubcategoryEntity.fromFirestore(
+      String id, Map<String, dynamic> data) {
     return SubcategoryEntity(
       id: id,
       name: data['name'] as String? ?? '',

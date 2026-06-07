@@ -7,45 +7,50 @@ final cartRemoteDataSourceProvider = Provider<CartRemoteDataSource>((ref) {
   return CartRemoteDataSourceImpl(firestore: FirebaseFirestore.instance);
 });
 
-final cartItemsProvider = StreamProvider.family<List<CartEntity>, String>((ref, oderId) {
+final cartItemsProvider =
+    StreamProvider.family<List<CartEntity>, String>((ref, oderId) {
   return FirebaseFirestore.instance
       .collection('carts')
       .where('oderId', isEqualTo: oderId)
       .snapshots()
       .map((snapshot) => snapshot.docs.map((doc) {
-        final data = doc.data();
-        return CartEntity(
-          id: data['id'] ?? '',
-          oderId: data['oderId'] ?? '',
-          productId: data['productId'] ?? '',
-          productTitle: data['productTitle'] ?? '',
-          price: (data['price'] ?? 0).toDouble(),
-          imageUrl: data['imageUrl'] ?? '',
-          sellerId: data['sellerId'] ?? '',
-          sellerName: data['sellerName'] ?? '',
-          quantity: data['quantity'] ?? 1,
-          addedAt: data['addedAt'] != null
-              ? DateTime.parse(data['addedAt'])
-              : DateTime.now(),
-        );
-      }).toList());
+            final data = doc.data();
+            return CartEntity(
+              id: data['id'] ?? '',
+              oderId: data['oderId'] ?? '',
+              productId: data['productId'] ?? '',
+              productTitle: data['productTitle'] ?? '',
+              price: (data['price'] ?? 0).toDouble(),
+              imageUrl: data['imageUrl'] ?? '',
+              sellerId: data['sellerId'] ?? '',
+              sellerName: data['sellerName'] ?? '',
+              quantity: data['quantity'] ?? 1,
+              addedAt: data['addedAt'] != null
+                  ? DateTime.parse(data['addedAt'])
+                  : DateTime.now(),
+            );
+          }).toList());
 });
 
-final addToCartProvider = FutureProvider.family<void, CartEntity>((ref, cart) async {
+final addToCartProvider =
+    FutureProvider.family<void, CartEntity>((ref, cart) async {
   final dataSource = ref.watch(cartRemoteDataSourceProvider);
   await dataSource.addToCart(cart);
 });
 
-final removeFromCartProvider = FutureProvider.family<void, String>((ref, cartId) async {
+final removeFromCartProvider =
+    FutureProvider.family<void, String>((ref, cartId) async {
   final dataSource = ref.watch(cartRemoteDataSourceProvider);
   await dataSource.removeFromCart(cartId);
 });
 
-final clearCartProvider = FutureProvider.family<void, String>((ref, oderId) async {
+final clearCartProvider =
+    FutureProvider.family<void, String>((ref, oderId) async {
   final dataSource = ref.watch(cartRemoteDataSourceProvider);
   await dataSource.clearCart(oderId);
 });
 
-final cartTotalProvider = Provider.family<double, List<CartEntity>>((ref, items) {
-  return items.fold(0, (sum, item) => sum + (item.total));
+final cartTotalProvider =
+    Provider.family<double, List<CartEntity>>((ref, items) {
+  return items.fold(0, (total, item) => total + (item.total));
 });

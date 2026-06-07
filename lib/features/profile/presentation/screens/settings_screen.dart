@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:olmeg_connect/core/localization/app_localizations.dart';
 import 'package:olmeg_connect/core/theme/app_theme.dart';
+import 'package:olmeg_connect/core/widgets/app_brand.dart';
 import 'package:olmeg_connect/features/settings/providers/settings_provider.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -12,20 +13,34 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(settingsNotifierProvider);
     final l10n = AppLocalizations.of(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final backgroundColor = AppColors.getBackground(isDark);
+    final textColor = AppColors.getTextPrimary(isDark);
+    final secondaryColor = AppColors.getTextSecondary(isDark);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        backgroundColor: AppColors.background,
+        backgroundColor: backgroundColor,
         title: Text(l10n.settings),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+          icon: Icon(Icons.arrow_back, color: textColor),
           onPressed: () => Navigator.pop(context),
         ),
       ),
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.md),
         children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+            child: AppBrandLockup(
+              logoSize: 48,
+              titleSize: 20,
+              taglineSize: 12,
+              titleColor: textColor,
+              taglineColor: secondaryColor,
+            ),
+          ),
           _SettingsTile(
             icon: Icons.light_mode,
             title: l10n.lightMode,
@@ -38,7 +53,7 @@ class SettingsScreen extends ConsumerWidget {
                 if (states.contains(WidgetState.selected)) {
                   return AppColors.primary;
                 }
-                return AppColors.textSecondary;
+                return secondaryColor;
               }),
             ),
           ),
@@ -53,7 +68,7 @@ class SettingsScreen extends ConsumerWidget {
           _SettingsTile(
             icon: Icons.notifications,
             title: l10n.notifications,
-            onTap: () {},
+            onTap: () => context.push('/notifications'),
           ),
           _SettingsTile(
             icon: Icons.privacy_tip,
@@ -68,8 +83,16 @@ class SettingsScreen extends ConsumerWidget {
           _SettingsTile(
             icon: Icons.info,
             title: l10n.about,
-            subtitle: l10n.version,
-            onTap: () {},
+            subtitle: '${l10n.marketplaceTagline} • ${l10n.version}',
+            onTap: () => showAboutDialog(
+              context: context,
+              applicationName: l10n.appName,
+              applicationVersion: l10n.version,
+              applicationIcon: const AppLogoMark(size: 48),
+              children: [
+                Text(l10n.marketplaceTagline),
+              ],
+            ),
           ),
         ],
       ),
@@ -79,13 +102,16 @@ class SettingsScreen extends ConsumerWidget {
   void _showLanguageDialog(BuildContext context, WidgetRef ref) {
     final currentLang = ref.read(settingsNotifierProvider).language;
     final l10n = AppLocalizations.of(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surfaceColor = AppColors.getSurface(isDark);
+    final textColor = AppColors.getTextPrimary(isDark);
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: AppColors.surface,
+        backgroundColor: surfaceColor,
         title: Text(
           l10n.selectLanguage,
-          style: const TextStyle(color: AppColors.textPrimary),
+          style: TextStyle(color: textColor),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -130,11 +156,14 @@ class _LanguageOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = AppColors.getTextPrimary(isDark);
+    final secondaryColor = AppColors.getTextSecondary(isDark);
     return ListTile(
-      title: Text(label, style: const TextStyle(color: AppColors.textPrimary)),
+      title: Text(label, style: TextStyle(color: textColor)),
       leading: Icon(
         isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-        color: isSelected ? AppColors.primary : AppColors.textSecondary,
+        color: isSelected ? AppColors.primary : secondaryColor,
       ),
       onTap: onTap,
     );
@@ -158,23 +187,28 @@ class _SettingsTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surfaceColor = AppColors.getSurface(isDark);
+    final textColor = AppColors.getTextPrimary(isDark);
+    final secondaryColor = AppColors.getTextSecondary(isDark);
     return ListTile(
       leading: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: surfaceColor,
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(icon, color: AppColors.primary),
       ),
-      title: Text(title, style: const TextStyle(color: AppColors.textPrimary)),
+      title: Text(title, style: TextStyle(color: textColor)),
       subtitle: subtitle != null
-          ? Text(subtitle!,
-              style: const TextStyle(color: AppColors.textSecondary))
+          ? Text(subtitle!, style: TextStyle(color: secondaryColor))
           : null,
       trailing: trailing ??
-          const Icon(Icons.chevron_right, color: AppColors.textSecondary),
-      onTap: onTap ?? () {},
+          (onTap == null
+              ? null
+              : Icon(Icons.chevron_right, color: secondaryColor)),
+      onTap: onTap,
     );
   }
 }

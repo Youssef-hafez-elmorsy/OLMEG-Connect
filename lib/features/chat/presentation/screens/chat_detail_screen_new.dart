@@ -137,7 +137,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
         actions: [
           IconButton(
             icon: Icon(Icons.info_outline, color: AppThemeHelper.textPrimary(context)),
-            onPressed: () {},
+            onPressed: () => _showLegacyDemoNotice(context),
           ),
         ],
       ),
@@ -290,7 +290,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
                             Icons.attach_file,
                             color: AppThemeHelper.textSecondary(context),
                           ),
-                          onPressed: () {},
+                          onPressed: () => _showLegacyDemoNotice(context),
                         ),
                       ),
                       maxLines: null,
@@ -319,6 +319,14 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showLegacyDemoNotice(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('This legacy demo chat action is not wired to production.'),
       ),
     );
   }

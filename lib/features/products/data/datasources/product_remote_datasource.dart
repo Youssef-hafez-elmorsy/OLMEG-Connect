@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -19,6 +20,8 @@ abstract class ProductRemoteDataSource {
 }
 
 class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
+  static const int productListLimit = 80;
+
   final FirebaseFirestore _firestore;
   final FirebaseStorage _storage;
 
@@ -32,33 +35,97 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
 
   @override
   Stream<List<ProductModel>> getProducts({String? categoryId}) {
-    Query query = _col.orderBy('createdAt', descending: true);
+    final filterId = categoryId?.trim();
+    if (filterId != null && filterId.isNotEmpty) {
+      return _getFilteredProducts(filterId);
+    }
+
+    final query =
+        _col.orderBy('createdAt', descending: true).limit(productListLimit);
 
     return query.snapshots().map((s) {
       final allProducts = s.docs
           .where((d) {
             final data = d.data() as Map<String, dynamic>;
-            final status = data['moderationStatus'] as String?;
-            return status == null || status == 'approved';
+            return _isPublicProduct(data);
           })
           .map((d) => ProductModel.fromFirestore(d))
           .toList();
 
-      if (categoryId == null || categoryId.isEmpty) {
-        return allProducts;
-      }
-
-      // Filter by categoryId OR subCategoryId OR category name
-      final filtered = allProducts.where((p) {
-        final match = p.categoryId == categoryId ||
-            p.subCategoryId == categoryId ||
-            p.category.toLowerCase() == categoryId.toLowerCase() ||
-            (p.subCategoryName?.toLowerCase() == categoryId.toLowerCase());
-        return match;
-      }).toList();
-
-      return filtered;
+      return allProducts;
     });
+  }
+
+  Stream<List<ProductModel>> _getFilteredProducts(String filterId) {
+    final controller = StreamController<List<ProductModel>>();
+    final latest = <int, List<ProductModel>>{};
+    final queries = [
+      _fieldQuery('categoryId', filterId),
+      _fieldQuery('subCategoryId', filterId),
+      _fieldQuery('categoryName', filterId),
+      _fieldQuery('category', filterId),
+    ];
+
+    late final List<StreamSubscription<QuerySnapshot>> subscriptions;
+    void emitMerged() {
+      final byId = <String, ProductModel>{};
+      for (final products in latest.values) {
+        for (final product in products) {
+          byId[product.id] = product;
+        }
+      }
+      final merged = byId.values.toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      controller.add(merged.take(productListLimit).toList());
+    }
+
+    subscriptions = [
+      for (var i = 0; i < queries.length; i++)
+        queries[i].snapshots().listen((snapshot) {
+          latest[i] = snapshot.docs
+              .where((doc) => _isPublicProduct(
+                    doc.data() as Map<String, dynamic>,
+                  ))
+              .map((doc) => ProductModel.fromFirestore(doc))
+              .where((product) => _matchesFilter(product, filterId))
+              .toList();
+          emitMerged();
+        }, onError: controller.addError),
+    ];
+
+    controller.onCancel = () async {
+      for (final subscription in subscriptions) {
+        await subscription.cancel();
+      }
+    };
+
+    return controller.stream;
+  }
+
+  Query _fieldQuery(String field, String value) {
+    return _col
+        .where(field, isEqualTo: value)
+        .orderBy('createdAt', descending: true)
+        .limit(productListLimit);
+  }
+
+  bool _isPublicProduct(Map<String, dynamic> data) {
+    final status = data['moderationStatus'] as String?;
+    final publishStatus = data['publishStatus'] as String?;
+    final listingStatus = data['status'] as String?;
+    return (status == null || status == 'approved') &&
+        publishStatus != 'draft' &&
+        publishStatus != 'scheduled' &&
+        listingStatus != 'draft' &&
+        listingStatus != 'scheduled';
+  }
+
+  bool _matchesFilter(ProductModel product, String filterId) {
+    final normalizedFilter = filterId.toLowerCase();
+    return product.categoryId == filterId ||
+        product.subCategoryId == filterId ||
+        product.category.toLowerCase() == normalizedFilter ||
+        product.subCategoryName?.toLowerCase() == normalizedFilter;
   }
 
   @override
@@ -66,6 +133,7 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
     return _col
         .where('sellerId', isEqualTo: userId)
         .orderBy('createdAt', descending: true)
+        .limit(productListLimit)
         .snapshots()
         .map((s) => s.docs.map((d) => ProductModel.fromFirestore(d)).toList());
   }
@@ -84,7 +152,7 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
       String? imageExtension}) async {
     try {
       final imageUrl = await _uploadImage(imageFile, imageBytes, product.id,
-          imageExtension: imageExtension);
+          sellerId: product.sellerId, imageExtension: imageExtension);
 
       final updatedProduct = ProductModel(
         id: product.id,
@@ -119,7 +187,7 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
   }
 
   Future<String> _uploadImage(File? file, Uint8List? bytes, String productId,
-      {String? imageExtension}) async {
+      {required String sellerId, String? imageExtension}) async {
     try {
       final ext = imageExtension ?? 'jpg';
 
@@ -132,7 +200,7 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
       // For Mobile/Desktop: use Firebase Storage
       final ref = _storage
           .ref()
-          .child('${AppConstants.productImagesPath}/$productId.$ext');
+          .child('${AppConstants.productImagesPath}/$sellerId/$productId.$ext');
 
       String contentType;
       switch (ext.toLowerCase()) {
@@ -149,7 +217,10 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
           contentType = 'image/jpeg';
       }
 
-      final metadata = SettableMetadata(contentType: contentType);
+      final metadata = SettableMetadata(
+        contentType: contentType,
+        cacheControl: 'public,max-age=31536000,immutable',
+      );
 
       UploadTask uploadTask;
       if (file != null) {
