@@ -1,0 +1,9 @@
+{
+  "name": "Olmeg Admin",
+  "short_name": "Olmeg Admin",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#0F172A",
+  "theme_color": "#0F766E",
+  "description": "Standalone admin console for Olmeg Connect"
+}

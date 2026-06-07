@@ -1,9 +1,63 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    match /{allPaths=**} {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function hasRole(role) {
+      return signedIn() && (
+        request.auth.token.role == role ||
+        (
+          request.auth.token.roles is list &&
+          role in request.auth.token.roles
+        )
+      );
+    }
+
+    function isAdmin() {
+      return signedIn() && (
+        request.auth.token.admin == true ||
+        request.auth.token.role == 'admin' ||
+        request.auth.token.role == 'super_admin'
+      );
+    }
+
+    function isAdminStaff() {
+      return isAdmin() || hasRole('moderator') || hasRole('support');
+    }
+
+    function validImage(maxBytes) {
+      return request.resource.size < maxBytes &&
+        request.resource.contentType.matches('image/.*');
+    }
+
+    function validMerchantDocument() {
+      return request.resource.size < 10 * 1024 * 1024 &&
+        request.resource.contentType.matches('image/.*|application/pdf');
+    }
+
+    match /product_images/{userId}/{fileName} {
       allow read: if true;
-      allow write: if true;
+      allow write: if isOwner(userId) && validImage(8 * 1024 * 1024);
+    }
+
+    match /merchant_verification/{userId}/{fileName} {
+      allow read: if isOwner(userId) || isAdminStaff();
+      allow write: if (isOwner(userId) || isAdmin()) && validMerchantDocument();
+    }
+
+    match /review_images/{userId}/{fileName} {
+      allow read: if true;
+      allow write: if isOwner(userId) && validImage(8 * 1024 * 1024);
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
     }
   }
 }

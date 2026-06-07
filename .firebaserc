@@ -1,5 +1,17 @@
 {
   "projects": {
     "default": "olmeg-connect"
+  },
+  "targets": {
+    "olmeg-connect": {
+      "hosting": {
+        "main": [
+          "olmeg-connect"
+        ],
+        "admin": [
+          "olmeg-connect-admin"
+        ]
+      }
+    }
   }
 }
