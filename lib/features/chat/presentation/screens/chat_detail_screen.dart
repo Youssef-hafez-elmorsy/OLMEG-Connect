@@ -100,6 +100,8 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
           final chat = latestChat ?? widget.chat;
           final liveIsBuyer = chat.buyerId == user.id;
           final otherUser = liveIsBuyer ? chat.sellerName : chat.buyerName;
+          final messages = chat.orderedMessages;
+          final isBlocked = chat.blockedBy.contains(user.id);
 
           return Column(
             children: [
@@ -108,11 +110,14 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
                 productTitle: chat.productTitle,
                 roleLabel: liveIsBuyer ? l10n.t('buying') : l10n.t('selling'),
                 onBack: () => context.pop(),
-                onOptions: () => _showConversationOptions(chat.id, user.id),
+                onOptions: () => _showConversationOptions(chat, user.id),
               ),
-              _ProductContextBar(productTitle: chat.productTitle),
+              _ProductContextBar(
+                productTitle: chat.productTitle,
+                safetyStatus: chat.safetyStatus,
+              ),
               Expanded(
-                child: chat.messages.isEmpty
+                child: messages.isEmpty
                     ? _EmptyConversationState(otherUser: otherUser)
                     : ListView.builder(
                         controller: _scrollController,
@@ -122,39 +127,46 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
                           AppSpacing.md,
                           AppSpacing.lg,
                         ),
-                        itemCount: chat.messages.length,
+                        itemCount: messages.length,
                         itemBuilder: (context, index) {
-                          final message = chat.messages[index];
-                          final isMe = message['senderId'] == user.id;
-                          final time =
-                              DateTime.tryParse(message['createdAt'] ?? '') ??
-                                  DateTime.now();
+                          final message = messages[index];
+                          final isMe =
+                              ChatMessageFields.senderId(message) == user.id;
+                          final time = ChatMessageFields.createdAt(message);
                           final previous =
-                              index > 0 ? chat.messages[index - 1] : null;
+                              index > 0 ? messages[index - 1] : null;
                           final previousTime = previous == null
                               ? null
-                              : DateTime.tryParse(
-                                  previous['createdAt'] ?? '',
-                                );
+                              : ChatMessageFields.createdAt(previous);
                           final showDate = previousTime == null ||
                               previousTime.year != time.year ||
                               previousTime.month != time.month ||
                               previousTime.day != time.day;
                           return _MessageBubble(
-                            content: message['content'],
-                            senderName: message['senderName'],
+                            content: ChatMessageFields.content(message),
+                            senderName: ChatMessageFields.senderName(message),
                             isMe: isMe,
                             time: time,
+                            status: ChatMessageFields.status(message),
                             showDate: showDate,
+                            onReport: () => _showReportDialog(
+                              chatId: chat.id,
+                              reporterId: user.id,
+                              messageId: ChatMessageFields.id(message),
+                            ),
                           );
                         },
                       ),
               ),
+              if (isBlocked)
+                _ConversationBlockedNotice(
+                  onUnblock: () => _setBlocked(chat.id, user.id, false),
+                ),
               _MessageInputBar(
                 controller: _messageCtrl,
-                isLoading: _isLoading,
+                isLoading: _isLoading || isBlocked,
                 onAttach: _showAttachmentUnavailable,
-                onSend: _sendMessage,
+                onSend: isBlocked ? () {} : _sendMessage,
               ),
             ],
           );
@@ -163,13 +175,44 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
     );
   }
 
-  Future<void> _showConversationOptions(String chatId, String userId) async {
+  Future<void> _showConversationOptions(ChatModel chat, String userId) async {
+    final isMuted = chat.mutedFor.contains(userId);
+    final isBlocked = chat.blockedBy.contains(userId);
     final action = await showModalBottomSheet<String>(
       context: context,
       builder: (context) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            ListTile(
+              leading: Icon(
+                isMuted
+                    ? Icons.notifications_active_outlined
+                    : Icons.notifications_off_outlined,
+              ),
+              title: Text(AppLocalizations.of(context)
+                  .t(isMuted ? 'unmuteConversation' : 'muteConversation')),
+              subtitle:
+                  Text(AppLocalizations.of(context).t('muteConversationHelp')),
+              onTap: () => Navigator.pop(context, 'mute'),
+            ),
+            ListTile(
+              leading: Icon(
+                isBlocked ? Icons.lock_open_outlined : Icons.block_outlined,
+              ),
+              title: Text(AppLocalizations.of(context)
+                  .t(isBlocked ? 'unblockConversation' : 'blockConversation')),
+              subtitle:
+                  Text(AppLocalizations.of(context).t('blockConversationHelp')),
+              onTap: () => Navigator.pop(context, 'block'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.report_outlined),
+              title: Text(AppLocalizations.of(context).t('reportConversation')),
+              subtitle: Text(
+                  AppLocalizations.of(context).t('reportConversationHelp')),
+              onTap: () => Navigator.pop(context, 'report'),
+            ),
             ListTile(
               leading: const Icon(Icons.visibility_off_outlined),
               title: Text(AppLocalizations.of(context).t('hideConversation')),
@@ -187,10 +230,24 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
       ),
     );
 
+    if (action == null) return;
+    if (action == 'report') {
+      await _showReportDialog(chatId: chat.id, reporterId: userId);
+      return;
+    }
+    if (action == 'mute') {
+      await _setMuted(chat.id, userId, !isMuted);
+      return;
+    }
+    if (action == 'block') {
+      await _setBlocked(chat.id, userId, !isBlocked);
+      return;
+    }
     if (action != 'hide') return;
-    final error = await ref
-        .read(chatNotifierProvider.notifier)
-        .hideChat(chatId: chatId, userId: userId);
+    final error = await ref.read(chatNotifierProvider.notifier).hideChat(
+          chatId: chat.id,
+          userId: userId,
+        );
     if (!mounted) return;
     if (error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -204,6 +261,102 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
       ),
     );
     context.go('/chats');
+  }
+
+  Future<void> _setMuted(String chatId, String userId, bool muted) async {
+    final error = await ref.read(chatNotifierProvider.notifier).muteChat(
+          chatId: chatId,
+          userId: userId,
+          muted: muted,
+        );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(error ??
+            AppLocalizations.of(context)
+                .t(muted ? 'conversationMuted' : 'conversationUnmuted')),
+      ),
+    );
+  }
+
+  Future<void> _setBlocked(String chatId, String userId, bool blocked) async {
+    final error = await ref.read(chatNotifierProvider.notifier).blockChat(
+          chatId: chatId,
+          userId: userId,
+          blocked: blocked,
+        );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(error ??
+            AppLocalizations.of(context)
+                .t(blocked ? 'conversationBlocked' : 'conversationUnblocked')),
+      ),
+    );
+  }
+
+  Future<void> _showReportDialog({
+    required String chatId,
+    required String reporterId,
+    String? messageId,
+  }) async {
+    final reasonController = TextEditingController(text: 'unsafe_content');
+    final descriptionController = TextEditingController();
+    final submitted = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(AppLocalizations.of(context).t('reportConversation')),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: reasonController,
+              decoration: InputDecoration(
+                labelText: AppLocalizations.of(context).t('reportReason'),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            TextField(
+              controller: descriptionController,
+              minLines: 2,
+              maxLines: 4,
+              decoration: InputDecoration(
+                labelText:
+                    AppLocalizations.of(context).t('reportDescriptionOptional'),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(AppLocalizations.of(context).cancel),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(context, true),
+            icon: const Icon(Icons.report_outlined),
+            label: Text(AppLocalizations.of(context).t('submitReport')),
+          ),
+        ],
+      ),
+    );
+    if (submitted != true) return;
+    final error = await ref.read(chatNotifierProvider.notifier).reportChat(
+          chatId: chatId,
+          messageId: messageId,
+          reporterId: reporterId,
+          reason: reasonController.text,
+          description: descriptionController.text,
+        );
+    reasonController.dispose();
+    descriptionController.dispose();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+            error ?? AppLocalizations.of(context).t('conversationReported')),
+      ),
+    );
   }
 
   void _showAttachmentUnavailable() {
@@ -330,8 +483,12 @@ class _ConversationHeader extends StatelessWidget {
 
 class _ProductContextBar extends StatelessWidget {
   final String productTitle;
+  final String safetyStatus;
 
-  const _ProductContextBar({required this.productTitle});
+  const _ProductContextBar({
+    required this.productTitle,
+    required this.safetyStatus,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -360,6 +517,10 @@ class _ProductContextBar extends StatelessWidget {
               ),
             ),
           ),
+          if (safetyStatus != 'normal')
+            const Icon(Icons.verified_user_outlined, color: AppColors.warning)
+          else
+            const Icon(Icons.lock_outline, color: AppColors.primary),
         ],
       ),
     );
@@ -586,14 +747,18 @@ class _MessageBubble extends StatelessWidget {
   final String senderName;
   final bool isMe;
   final DateTime time;
+  final String status;
   final bool showDate;
+  final VoidCallback onReport;
 
   const _MessageBubble({
     required this.content,
     required this.senderName,
     required this.isMe,
     required this.time,
+    required this.status,
     required this.showDate,
+    required this.onReport,
   });
 
   @override
@@ -616,60 +781,110 @@ class _MessageBubble extends StatelessWidget {
               ),
             ),
           ),
-        Align(
-          alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 310),
-            child: Container(
-              margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md,
-                vertical: AppSpacing.sm,
-              ),
-              decoration: BoxDecoration(
-                color: isMe ? AppColors.primary : surfaceColor,
-                borderRadius: BorderRadius.circular(AppRadius.lg).copyWith(
-                  bottomRight: isMe ? const Radius.circular(4) : null,
-                  bottomLeft: !isMe ? const Radius.circular(4) : null,
+        GestureDetector(
+          onLongPress: onReport,
+          child: Align(
+            alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 310),
+              child: Container(
+                margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.sm,
                 ),
-                border: isMe ? null : Border.all(color: dividerColor),
-              ),
-              child: Column(
-                crossAxisAlignment:
-                    isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-                children: [
-                  if (!isMe)
+                decoration: BoxDecoration(
+                  color: isMe ? AppColors.primary : surfaceColor,
+                  borderRadius: BorderRadius.circular(AppRadius.lg).copyWith(
+                    bottomRight: isMe ? const Radius.circular(4) : null,
+                    bottomLeft: !isMe ? const Radius.circular(4) : null,
+                  ),
+                  border: isMe ? null : Border.all(color: dividerColor),
+                ),
+                child: Column(
+                  crossAxisAlignment:
+                      isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                  children: [
+                    if (!isMe)
+                      Text(
+                        senderName,
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: secondaryColor,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     Text(
-                      senderName,
+                      content,
                       style: TextStyle(
-                        fontSize: 10,
-                        color: secondaryColor,
-                        fontWeight: FontWeight.w700,
+                        height: 1.35,
+                        color: isMe ? AppColors.background : textColor,
                       ),
                     ),
-                  Text(
-                    content,
-                    style: TextStyle(
-                      height: 1.35,
-                      color: isMe ? AppColors.background : textColor,
+                    const SizedBox(height: 3),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          DateFormat('h:mm a').format(time),
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: isMe
+                                ? AppColors.background.withValues(alpha: 0.7)
+                                : secondaryColor,
+                          ),
+                        ),
+                        if (isMe) ...[
+                          const SizedBox(width: 4),
+                          Icon(
+                            status == 'failed'
+                                ? Icons.error_outline
+                                : Icons.done_all,
+                            size: 12,
+                            color: AppColors.background.withValues(alpha: 0.75),
+                          ),
+                        ],
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    DateFormat('h:mm a').format(time),
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: isMe
-                          ? AppColors.background.withValues(alpha: 0.7)
-                          : secondaryColor,
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
         ),
       ],
+    );
+  }
+}
+
+class _ConversationBlockedNotice extends StatelessWidget {
+  final VoidCallback onUnblock;
+
+  const _ConversationBlockedNotice({required this.onUnblock});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.error.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: AppColors.error.withValues(alpha: 0.18)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.block_outlined, color: AppColors.error),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(AppLocalizations.of(context).t('blockedNotice')),
+          ),
+          TextButton(
+            onPressed: onUnblock,
+            child: Text(AppLocalizations.of(context).t('unblockConversation')),
+          ),
+        ],
+      ),
     );
   }
 }

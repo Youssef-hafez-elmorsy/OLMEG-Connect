@@ -213,6 +213,8 @@ storage.rules
 |---|---|---|---|
 | 2026-06-07 | Spec creation | Created [spec.md](./spec.md) and [requirements checklist](./checklists/requirements.md); no clarification markers remain | Complete |
 | 2026-06-07 | Planning | Created phased plan, research, data model, quickstart, and UI/security contract; updated active agent context | Pending user approval |
+| 2026-06-08 | Implementation | Implemented message subcollections, participant state, reporting, chat UI polish, admin report evidence, Firestore rules, and task checklist | Complete |
+| 2026-06-08 | Validation | `flutter analyze`, targeted chat/security tests, full `flutter test`, public `flutter build web`, admin `flutter analyze`, admin `flutter test`, admin `flutter build web`, and `firebase deploy --only firestore:rules --dry-run` passed | Complete |
 
 ## Complexity Tracking
 

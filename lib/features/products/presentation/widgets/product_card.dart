@@ -16,6 +16,7 @@ class ProductCard extends StatelessWidget {
   final VoidCallback? onDelete;
   final VoidCallback? onFavorite;
   final VoidCallback? onTap;
+  final bool compact;
 
   const ProductCard({
     super.key,
@@ -23,6 +24,7 @@ class ProductCard extends StatelessWidget {
     this.onDelete,
     this.onFavorite,
     this.onTap,
+    this.compact = false,
   });
 
   @override
@@ -68,6 +70,7 @@ class ProductCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
+                  flex: compact ? 8 : 5,
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
@@ -137,22 +140,22 @@ class ProductCard extends StatelessWidget {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.all(AppSpacing.md),
+                  padding: EdgeInsets.all(compact ? 10 : AppSpacing.md),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         product.title,
-                        maxLines: 2,
+                        maxLines: compact ? 1 : 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: textColor,
-                          fontSize: 14,
+                          fontSize: compact ? 13 : 14,
                           height: 1.18,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
-                      const SizedBox(height: 6),
+                      SizedBox(height: compact ? 4 : 6),
                       Row(
                         children: [
                           Flexible(
@@ -184,87 +187,99 @@ class ProductCard extends StatelessWidget {
                           ],
                         ],
                       ),
-                      const SizedBox(height: 8),
-                      BuyerSignalStrip(
-                        items: [
-                          BuyerSignalItem(
-                            icon: product.supportsDelivery
-                                ? Icons.local_shipping_outlined
-                                : Icons.chat_bubble_outline,
-                            label: deliveryLabel,
-                            color: product.supportsDelivery
-                                ? AppColors.success
-                                : AppColors.warning,
-                          ),
-                          BuyerSignalItem(
-                            icon: product.ratingAverage > 0
-                                ? Icons.star
-                                : Icons.category_outlined,
-                            label: product.ratingAverage > 0
-                                ? product.ratingAverage.toStringAsFixed(1)
-                                : categoryLabel,
-                            color: AppColors.warning,
-                          ),
-                          BuyerSignalItem(
-                            icon: sellerVerified
-                                ? Icons.verified_user_outlined
-                                : Icons.storefront_outlined,
-                            label: sellerVerified
-                                ? (l10n?.t('verifiedSeller') ??
-                                    'Verified seller')
-                                : (l10n?.t('sellerProfile') ??
-                                    'Seller profile'),
-                            color: sellerVerified
-                                ? AppColors.primary
-                                : secondaryColor,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Icon(Icons.inventory_2_outlined,
-                              size: 14, color: statusColor),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              product.inStock
-                                  ? '${product.stockQuantity} ${l10n?.t('inStock') ?? 'in stock'}'
-                                  : l10n?.t('outOfStock') ?? 'Out of stock',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: secondaryColor,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
+                      SizedBox(height: compact ? 6 : 8),
+                      if (compact)
+                        _CompactCue(
+                          icon: product.supportsDelivery
+                              ? Icons.local_shipping_outlined
+                              : Icons.chat_bubble_outline,
+                          label: deliveryLabel,
+                          color: product.supportsDelivery
+                              ? AppColors.success
+                              : AppColors.warning,
+                        )
+                      else ...[
+                        BuyerSignalStrip(
+                          items: [
+                            BuyerSignalItem(
+                              icon: product.supportsDelivery
+                                  ? Icons.local_shipping_outlined
+                                  : Icons.chat_bubble_outline,
+                              label: deliveryLabel,
+                              color: product.supportsDelivery
+                                  ? AppColors.success
+                                  : AppColors.warning,
                             ),
-                          ),
-                          if (product.viewCount > 0) ...[
-                            Icon(Icons.visibility_outlined,
-                                size: 14, color: secondaryColor),
-                            const SizedBox(width: 3),
-                            Text(
-                              '${product.viewCount}',
-                              style: TextStyle(
-                                color: secondaryColor,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
+                            BuyerSignalItem(
+                              icon: product.ratingAverage > 0
+                                  ? Icons.star
+                                  : Icons.category_outlined,
+                              label: product.ratingAverage > 0
+                                  ? product.ratingAverage.toStringAsFixed(1)
+                                  : categoryLabel,
+                              color: AppColors.warning,
+                            ),
+                            BuyerSignalItem(
+                              icon: sellerVerified
+                                  ? Icons.verified_user_outlined
+                                  : Icons.storefront_outlined,
+                              label: sellerVerified
+                                  ? (l10n?.t('verifiedSeller') ??
+                                      'Verified seller')
+                                  : (l10n?.t('sellerProfile') ??
+                                      'Seller profile'),
+                              color: sellerVerified
+                                  ? AppColors.primary
+                                  : secondaryColor,
                             ),
                           ],
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        product.sellerName.isEmpty
-                            ? l10n?.t('marketplaceSeller') ??
-                                'Marketplace seller'
-                            : product.sellerName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: secondaryColor, fontSize: 12),
-                      ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Icon(Icons.inventory_2_outlined,
+                                size: 14, color: statusColor),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                product.inStock
+                                    ? '${product.stockQuantity} ${l10n?.t('inStock') ?? 'in stock'}'
+                                    : l10n?.t('outOfStock') ?? 'Out of stock',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: secondaryColor,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            if (product.viewCount > 0) ...[
+                              Icon(Icons.visibility_outlined,
+                                  size: 14, color: secondaryColor),
+                              const SizedBox(width: 3),
+                              Text(
+                                '${product.viewCount}',
+                                style: TextStyle(
+                                  color: secondaryColor,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          product.sellerName.isEmpty
+                              ? l10n?.t('marketplaceSeller') ??
+                                  'Marketplace seller'
+                              : product.sellerName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: secondaryColor, fontSize: 12),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -352,6 +367,40 @@ class _Pill extends StatelessWidget {
           fontWeight: FontWeight.w900,
         ),
       ),
+    );
+  }
+}
+
+class _CompactCue extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  const _CompactCue({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 14, color: color),
+        const SizedBox(width: 4),
+        Expanded(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: color,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -73,7 +73,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
               final otherUser =
                   chat.buyerId == user.id ? chat.sellerName : chat.buyerName;
               final text = '${chat.productTitle} $otherUser '
-                      '${chat.messages.isNotEmpty ? chat.messages.last['content'] : ''}'
+                      '${chat.safeLatestPreview}'
                   .toLowerCase();
               return text.contains(_query.toLowerCase().trim());
             }).toList();
@@ -242,15 +242,17 @@ class _ChatTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final lastMessage = chat.messages.isNotEmpty ? chat.messages.last : null;
     final isBuyer = chat.buyerId == currentUserId;
+    final hasUnread = chat.unreadBy.contains(currentUserId);
+    final isMuted = chat.mutedFor.contains(currentUserId);
+    final isBlocked = chat.blockedBy.contains(currentUserId);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final surfaceColor = AppColors.getSurface(isDark);
     final textColor = AppColors.getTextPrimary(isDark);
     final secondaryColor = AppColors.getTextSecondary(isDark);
     final l10n = AppLocalizations.of(context);
 
-    final lastContent = lastMessage?['content']?.toString() ?? '';
+    final lastContent = chat.safeLatestPreview;
     final hasRecentMessage = lastContent.trim().isNotEmpty;
 
     return Material(
@@ -297,8 +299,11 @@ class _ChatTile extends ConsumerWidget {
                         Text(
                           DateFormat('MMM d').format(chat.updatedAt),
                           style: TextStyle(
-                            color: secondaryColor,
+                            color:
+                                hasUnread ? AppColors.primary : secondaryColor,
                             fontSize: 12,
+                            fontWeight:
+                                hasUnread ? FontWeight.w800 : FontWeight.w400,
                           ),
                         ),
                       ],
@@ -315,13 +320,37 @@ class _ChatTile extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: 5),
-                    Text(
-                      hasRecentMessage
-                          ? lastContent
-                          : l10n.t('startConversation'),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: secondaryColor),
+                    Row(
+                      children: [
+                        if (isMuted)
+                          Icon(
+                            Icons.notifications_off_outlined,
+                            size: 14,
+                            color: secondaryColor,
+                          ),
+                        if (isBlocked)
+                          Icon(
+                            Icons.block_outlined,
+                            size: 14,
+                            color: secondaryColor,
+                          ),
+                        if (isMuted || isBlocked)
+                          const SizedBox(width: AppSpacing.xs),
+                        Expanded(
+                          child: Text(
+                            hasRecentMessage
+                                ? lastContent
+                                : l10n.t('startConversation'),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: hasUnread ? textColor : secondaryColor,
+                              fontWeight:
+                                  hasUnread ? FontWeight.w700 : FontWeight.w400,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -348,6 +377,16 @@ class _ChatTile extends ConsumerWidget {
                       ),
                     ),
                   ),
+                  if (hasUnread)
+                    Container(
+                      width: 9,
+                      height: 9,
+                      margin: const EdgeInsets.only(left: AppSpacing.xs),
+                      decoration: const BoxDecoration(
+                        color: AppColors.primary,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
                   IconButton(
                     tooltip: l10n.t('deleteConversation'),
                     icon: Icon(

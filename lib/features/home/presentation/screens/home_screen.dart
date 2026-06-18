@@ -449,7 +449,7 @@ class _DiscoverySection extends StatelessWidget {
                     final cardWidth =
                         constraints.maxWidth < 520 ? 184.0 : 204.0;
                     return SizedBox(
-                      height: cardWidth * 1.62,
+                      height: cardWidth * 1.36,
                       child: ListView.separated(
                         scrollDirection: Axis.horizontal,
                         padding: const EdgeInsets.symmetric(
@@ -540,6 +540,7 @@ class _ProductCardWrapper extends ConsumerWidget {
 
     return ProductCard(
       product: product,
+      compact: true,
       onTap: () {
         final source = recommendationSource;
         if (user != null && source != null) {

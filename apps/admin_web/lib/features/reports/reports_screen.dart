@@ -17,9 +17,26 @@ class ReportsScreen extends StatelessWidget {
       collectionName: 'reports',
       columns: [
         AdminTableColumn.field('Status', 'status', status: true),
-        AdminTableColumn.field('Type', 'type'),
+        AdminTableColumn.field('Type', 'targetType'),
         AdminTableColumn.field('Reporter', 'reporterId'),
         AdminTableColumn.field('Target', 'targetId'),
+        AdminTableColumn.field('Conversation', 'conversationId'),
+        AdminTableColumn(
+          label: 'Evidence',
+          width: 280,
+          value: (data) {
+            final evidence = data['evidenceSnapshot'];
+            if (evidence is! Map) return '-';
+            final message = evidence['message'];
+            if (message is Map && message['content'] != null) {
+              return message['content'].toString();
+            }
+            return evidence['latestMessagePreview']?.toString() ??
+                evidence['productTitle']?.toString() ??
+                '-';
+          },
+        ),
+        AdminTableColumn.field('Reason', 'reason'),
         AdminTableColumn.field('Created', 'createdAt'),
       ],
       rowActionsBuilder: _reportActions,

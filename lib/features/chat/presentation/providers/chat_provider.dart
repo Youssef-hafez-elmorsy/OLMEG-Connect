@@ -96,6 +96,56 @@ class ChatNotifier extends Notifier<AsyncValue<void>> {
       return e.toString();
     }
   }
+
+  Future<String?> muteChat({
+    required String chatId,
+    required String userId,
+    required bool muted,
+  }) async {
+    try {
+      final ds = ref.read(chatRemoteDataSourceProvider);
+      await ds.muteChatForUser(chatId, userId, muted);
+      return null;
+    } catch (e) {
+      return e.toString();
+    }
+  }
+
+  Future<String?> blockChat({
+    required String chatId,
+    required String userId,
+    required bool blocked,
+  }) async {
+    try {
+      final ds = ref.read(chatRemoteDataSourceProvider);
+      await ds.blockChatForUser(chatId, userId, blocked);
+      return null;
+    } catch (e) {
+      return e.toString();
+    }
+  }
+
+  Future<String?> reportChat({
+    required String chatId,
+    String? messageId,
+    required String reporterId,
+    required String reason,
+    String description = '',
+  }) async {
+    try {
+      final ds = ref.read(chatRemoteDataSourceProvider);
+      await ds.reportChat(
+        chatId: chatId,
+        messageId: messageId,
+        reporterId: reporterId,
+        reason: reason,
+        description: description,
+      );
+      return null;
+    } catch (e) {
+      return e.toString();
+    }
+  }
 }
 
 final chatNotifierProvider =
